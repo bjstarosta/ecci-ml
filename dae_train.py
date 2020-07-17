@@ -23,6 +23,7 @@ _DEFAULTS = {
     'model_dir': 'dae/',
     'checkpoint_dir': 'dae/checkpoints',
     'dataset_dir': 'datasets/',
+    'log_dir': 'logs/dae',
 
     'seed': int(datetime.datetime.utcnow().strftime('%d%m%Y')),
     'batch_size': 128,
@@ -38,6 +39,7 @@ def train(
         model_dir=_DEFAULTS['model_dir'],
         checkpoint_dir=_DEFAULTS['checkpoint_dir'],
         dataset_dir=_DEFAULTS['dataset_dir'],
+        log_dir=_DEFAULTS['log_dir'],
         overwrite_model=False, tb=False, test=False
     ):
     """Trains the Autoencoder and saves best model.
@@ -147,7 +149,7 @@ def train(
     )"""
     if tb == True:
         callbacks.append(tf.keras.callbacks.TensorBoard(
-            log_dir='./logs/cdae',
+            log_dir=log_dir,
             write_graph=True,
             write_images=True
         ))
