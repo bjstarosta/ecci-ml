@@ -180,7 +180,7 @@ def train(
         Y_test,
         verbose=1
     )
-    logging.info('Denoising MSE: {:.6f}.'.format(denoising_loss))
+    logging.info('- Denoising loss: {:.6f}.'.format(denoising_loss))
 
     logging.info('Visualising.')
     visualise(autoencoder, X_test)
@@ -193,22 +193,14 @@ def visualise(autoencoder, x_test, n=9):
     for i in range(1, n):
         # display original
         ax = plt.subplot(2, n, i)
-        plt.imshow(x_test[i])
+        plt.imshow(x_test[i].reshape(x_test.shape[1], x_test.shape[2]))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
         # display reconstruction
         ax = plt.subplot(2, n, i + n)
-        plt.imshow(decoded_imgs[i])
-        plt.gray()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-
-    plt.figure(figsize=(20, 8))
-    for i in range(1, n):
-        ax = plt.subplot(1, n, i)
-        plt.imshow(encoded_imgs[i].reshape(4, 4 * 8).T)
+        plt.imshow(decoded_imgs[i].reshape(decoded_imgs.shape[1], decoded_imgs.shape[2]))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -220,6 +212,7 @@ def visualise(autoencoder, x_test, n=9):
 @click.option(
     '-lr',
     '--learning-rate',
+    type=float,
     default=_DEFAULTS['learning_rate'],
     show_default=True,
     help="""Learning rate for minimizing loss during training."""
@@ -234,6 +227,7 @@ def visualise(autoencoder, x_test, n=9):
 @click.option(
     '-ne',
     '--num-epochs',
+    type=int,
     default=_DEFAULTS['epochs'],
     show_default=True,
     help="""Number of epochs for training model."""
@@ -241,6 +235,7 @@ def visualise(autoencoder, x_test, n=9):
 @click.option(
     '-se',
     '--save-every',
+    type=int,
     default=_DEFAULTS['epoch_save_interval'],
     show_default=True,
     help="""Epoch interval to save model checkpoints during training."""
