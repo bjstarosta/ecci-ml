@@ -61,6 +61,7 @@ def load_dataset(dataset, limit=0):
         if not valid_image(im_path):
             continue
         images_valid.append(im_path)
+    images_valid.sort()
 
     with click.progressbar(
         label='Loading images...',
@@ -68,7 +69,7 @@ def load_dataset(dataset, limit=0):
         show_pos=True
     ) as pbar:
         for im in images_valid:
-            im = load_image(im_path)
+            im = load_image(im)
             X.append(im)
             pbar.update(1)
 
