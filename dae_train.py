@@ -21,27 +21,30 @@ import models.conv_denoising_autoencoder as cdae
 
 _DEFAULTS = {
     'model_dir': 'dae/',
-    'checkpoint_dir': 'dae/checkpoints',
+    'checkpoint_dir': 'dae/checkpoints/',
     'dataset_dir': 'datasets/',
     'log_dir': 'logs/dae',
+    'model_file': 'dae.h5',
 
     'seed': int(datetime.datetime.utcnow().strftime('%d%m%Y')),
-    'batch_size': 128,
-    'epochs': 100,
+    'batch_size': 64,
+    'epochs': 10,
     'learning_rate': 0.001,
     'test_size': 0.2
 }
 
 
 def train(
-        lr, batch, epochs, split, seed=None,
+        lr, batch, epochs, split, seed=None, type=0,
+        overwrite_model=False, tb=False, test=False,
+
         model_dir=_DEFAULTS['model_dir'],
         checkpoint_dir=_DEFAULTS['checkpoint_dir'],
         dataset_dir=_DEFAULTS['dataset_dir'],
         log_dir=_DEFAULTS['log_dir'],
-        overwrite_model=False, tb=False, test=False
+        model_file=_DEFAULTS['model_file']
     ):
-    """Trains the Autoencoder and saves best model.
+    """Trains and saves best model.
 
     Args:
         lr (float):
@@ -54,17 +57,17 @@ def train(
             Fraction of dataset to split off as test data.
         seed (int, optional):
             Random number generator seed. If not set it will be randomised.
+        tb (bool, optional):
+            Flag for TensorBoard visualization. Defaults to True.
+        test (bool, optional):
+            Flag for code sanity test (training using a single image).
+            Defaults to False.
         model_dir (str, optional):
             Path to directory where trained models will be saved for later use.
         checkpoint_dir (str, optional):
             Path to directory where trained models will be saved for later use.
         dataset_dir (str, optional):
             Path to dataset directory.
-        tb (bool, optional):
-            Flag for TensorBoard visualization. Defaults to True.
-        test (bool, optional):
-            Flag for code sanity test (training using a single image).
-            Defaults to False.
     """
     np.random.seed(seed)
     tf.random.set_seed(seed)
@@ -130,9 +133,11 @@ def train(
         #val_dataset = val_dataset.batch(batch)
 
 
-    model_path = os.path.join(model_dir, 'cdae.h5')
+    model_path = os.path.join(model_dir, model_file)
     if overwrite_model == False and test == False and os.path.exists(model_path):
-        logging.info('Loading pre-trained denoising autoencoder.')
+        logging.info('Loading pre-trained denoising autoencoder from "{0}".'.format(
+            model_path
+        ))
         autoencoder = tf.keras.models.load_model(model_path)
     else:
         logging.info('Creating denoising autoencoder.')
@@ -141,7 +146,7 @@ def train(
     autoencoder.summary()
 
     callbacks = [tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(checkpoint_dir, 'model.ckpt'),
+        os.path.join(checkpoint_dir, 'dae.{epoch:02d}-{val_loss:.2f}.h5'),
         monitor='val_loss',
         save_best_only=True, # checkpoint models only when `val_loss` improves
         save_freq='epoch',
@@ -158,35 +163,28 @@ def train(
             write_graph=True,
             write_images=True
         ))
-    for epoch in range(epochs):
-        # save training data in history object
-        history = autoencoder.fit(
-            #train_dataset,
-            x=X_train,
-            y=Y_train,
-            epochs=1,
-            batch_size=batch,
-            validation_data=val_dataset,
-            callbacks=callbacks,
-            verbose=1
-        )
-        logging.info('Epoch {}/{}  -  loss: {:.6f}  -  val loss: {:.6f}\n'.format(
-            epoch + 1,
-            epochs,
-            history.history['loss'][0],
-            history.history['val_loss'][0]
-        ))
 
-    logging.info('Saving denoising autoencoder to `{0}`.'.format(model_path))
+    history = autoencoder.fit(
+        #train_dataset,
+        x=X_train,
+        y=Y_train,
+        epochs=epochs,
+        batch_size=batch,
+        validation_data=val_dataset,
+        callbacks=callbacks,
+        verbose=1
+    )
+
+    logging.info('Saving model to `{0}`.'.format(model_path))
     autoencoder.save(model_path)
 
-    logging.info('Evaluating DeepConv denoising autoencoder.')
-    denoising_loss = autoencoder.evaluate(
+    logging.info('Evaluating.')
+    test_loss = autoencoder.evaluate(
         X_test,
         Y_test,
         verbose=1
     )
-    logging.info('- Denoising loss: {:.6f}.'.format(denoising_loss))
+    logging.info('- Denoising loss: {:.6f}'.format(test_loss))
 
     logging.info('Visualising.')
     visualise(autoencoder, X_test)
@@ -214,7 +212,7 @@ def visualise(autoencoder, x_test, n=9):
     plt.show()
 
 
-@click.command(name='Training Configuration')
+@click.command(name='Training configuration')
 @click.option(
     '-lr',
     '--learning-rate',
