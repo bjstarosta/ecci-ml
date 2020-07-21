@@ -28,14 +28,13 @@ _DEFAULTS = {
     'seed': int(datetime.datetime.utcnow().strftime('%d%m%Y')),
     'batch_size': 128,
     'epochs': 100,
-    'epoch_save_interval': 1,
     'learning_rate': 0.001,
     'test_size': 0.2
 }
 
 
 def train(
-        lr, batch, epochs, epoch_interval, split, seed=None,
+        lr, batch, epochs, split, seed=None,
         model_dir=_DEFAULTS['model_dir'],
         checkpoint_dir=_DEFAULTS['checkpoint_dir'],
         dataset_dir=_DEFAULTS['dataset_dir'],
@@ -51,8 +50,6 @@ def train(
             Batch size of minibatches to use during training.
         epochs (int):
             Number of epochs for training model.
-        epoch_interval (int):
-            Epoch interval to save model checkpoints during training.
         split (float):
             Fraction of dataset to split off as test data.
         seed (int, optional):
@@ -98,6 +95,13 @@ def train(
     X = (X.astype('float32') / 255.0)
     Y = (Y.astype('float32') / 255.0)
 
+    logging.debug("min(X)={0}, max(X)={1}, avg(X)={2}".format(
+        np.min(X), np.max(X), np.average(X)
+    ))
+    logging.debug("min(Y)={0}, max(Y)={1}, avg(Y)={2}".format(
+        np.min(Y), np.max(Y), np.average(Y)
+    ))
+
     # add channel dimension to image data
     X = np.expand_dims(X, axis=-1)
     Y = np.expand_dims(Y, axis=-1)
@@ -108,19 +112,22 @@ def train(
     ))
 
     if test == True:
-        train_dataset = tf.data.Dataset.from_tensor_slices((X, Y))
-        val_dataset = tf.data.Dataset.from_tensor_slices((X, Y))
+        #train_dataset = tf.data.Dataset.from_tensor_slices((X, Y))
+        #val_dataset = tf.data.Dataset.from_tensor_slices((X, Y))
+        X_train = X
+        Y_train = Y
         X_test = X
         Y_test = Y
+        val_dataset = (X, Y)
     else:
         X_train, X_test, Y_train, Y_test = sklms.train_test_split(X, Y, test_size=split, random_state=seed)
         X_test, X_val = np.array_split(X_test, 2)
         Y_test, Y_val = np.array_split(Y_test, 2)
-
-        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train))
-        train_dataset = train_dataset.shuffle(buffer_size=1000).batch(batch)
-        val_dataset = tf.data.Dataset.from_tensor_slices((X_val, Y_val))
-        val_dataset = val_dataset.batch(batch)
+        val_dataset = (X_val, Y_val)
+        #train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train))
+        #train_dataset = train_dataset.shuffle(buffer_size=1000).batch(batch)
+        #val_dataset = tf.data.Dataset.from_tensor_slices((X_val, Y_val))
+        #val_dataset = val_dataset.batch(batch)
 
 
     model_path = os.path.join(model_dir, 'cdae.h5')
@@ -138,15 +145,13 @@ def train(
         monitor='val_loss',
         save_best_only=True, # checkpoint models only when `val_loss` improves
         save_freq='epoch',
-        period=epoch_interval,
         verbose=1
-    )]
-    """, tf.keras.callbacks.EarlyStopping(
+    ), tf.keras.callbacks.EarlyStopping(
         monitor='val_loss', # Stop training when `val_loss` is no longer improving
         min_delta=1e-2, # "no longer improving" being defined as "no better than 1e-2 less"
         patience=2, # "no longer improving" being further defined as "for at least 2 epochs"
-        verbose=1,
-    )"""
+        verbose=1
+    )]
     if tb == True:
         callbacks.append(tf.keras.callbacks.TensorBoard(
             log_dir=log_dir,
@@ -156,12 +161,11 @@ def train(
     for epoch in range(epochs):
         # save training data in history object
         history = autoencoder.fit(
-            train_dataset,
-            #x=X,
-            #y=Y,
+            #train_dataset,
+            x=X_train,
+            y=Y_train,
             epochs=1,
-            #batch_size=batch,
-            #validation_split=split,
+            batch_size=batch,
             validation_data=val_dataset,
             callbacks=callbacks,
             verbose=1
@@ -235,14 +239,6 @@ def visualise(autoencoder, x_test, n=9):
     help="""Number of epochs for training model."""
 )
 @click.option(
-    '-se',
-    '--save-every',
-    type=int,
-    default=_DEFAULTS['epoch_save_interval'],
-    show_default=True,
-    help="""Epoch interval to save model checkpoints during training."""
-)
-@click.option(
     '-ts',
     '--test-size',
     type=float,
@@ -296,7 +292,6 @@ def main(**kwargs):
             lr=kwargs['learning_rate'],
             batch=kwargs['batch_size'],
             epochs=kwargs['num_epochs'],
-            epoch_interval=kwargs['save_every'],
             split=kwargs['test_size'],
             overwrite_model=kwargs['overwrite_model'],
             tb=kwargs['enable_tensorboard'],

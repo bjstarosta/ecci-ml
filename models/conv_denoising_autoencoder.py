@@ -28,8 +28,11 @@ def build(input_shape, lr, debug=False):
         if debug == True:
             autoencoder.summary()
 
-    optimiser = tf.keras.optimizers.Adadelta(learning_rate=lr, rho=0.95, epsilon=1e-07)
-    loss = tf.keras.losses.BinaryCrossentropy()
+    optimiser = tf.keras.optimizers.Adadelta(learning_rate=lr)
+    #optimiser = tf.keras.optimizers.Adam(learning_rate=lr)
+
+    #loss = tf.keras.losses.BinaryCrossentropy()
+    loss = tf.keras.losses.MeanSquaredError()
 
     autoencoder.compile(optimizer=optimiser, loss=loss)
     return autoencoder
