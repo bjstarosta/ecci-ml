@@ -22,4 +22,4 @@ python semgen/semgen.py -p generate -n 3 -d 52 52 -l ${OUT1} dipole --grey-range
 python semgen/semgen.py -p generate -n 3 -d 52 52 -l ${OUT1} dipole --grey-range 0.25 --grey-limit 0.25 0.75 --clip 0.75 1
 python semgen/semgen.py -p generate -n 3 -d 52 52 -l ${OUT1} dipole --grey-range 0.6 --grey-limit 0.15 0.85 --clip 0.7 1
 python semgen/semgen.py -p distort -o -l ${OUT1} ${OUT2} semnoise
-python dae_test.py
+python cae_test.py -v comparison

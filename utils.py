@@ -9,27 +9,22 @@ import os
 import logging
 
 import click
-import numpy as np
-import tensorflow as tf
 import skimage.external.tifffile as tifffile
 
 
-def reset_tf_session():
-    """Resets the TensorFlow session for Keras `backend`.
-
-    Returns:
-        tf.Session: New tensorflow session object.
-    """
-    tf.keras.backend.clear_session()
-
 def setup_path(path):
-    """Checks if passed directory exists, creates it if it doesn't."""
+    """Check if passed directory exists, create it if it doesn't.
+
+    Args:
+        path (str): Path to directory.
+
+    """
     if not os.path.isdir(path):
         os.mkdir(path)
 
+
 def load_dataset(dataset, limit=0):
-    """
-    Loads an image dataset with train/test split and attributes into memory.
+    """Load an image dataset with train/test split and attributes into memory.
 
     Args:
         dataset (str):
@@ -39,8 +34,7 @@ def load_dataset(dataset, limit=0):
             of files in the directory.
 
     Returns:
-        numpy.ndarray:
-            Unsplit data for the model.
+        numpy.ndarray: Unsplit data for the model.
     """
     X = []
 
@@ -80,16 +74,46 @@ def load_dataset(dataset, limit=0):
 
     return X
 
+
 def valid_image(path):
+    """Determine whether passed path is an image type that we accept.
+
+    Currently only tiff files.
+
+    Args:
+        path (str): Path to file.
+
+    Returns:
+        bool: True if file path is valid for reading, False otherwise.
+
+    """
     if not os.path.isfile(path):
         return False
-    if not path.endswith('.tif'):
+    if not path.endswith('.tif') and not path.endswith('.tiff'):
         return False
     return True
 
+
 def load_image(path):
+    """Read image from the passed path and return it in numpy array form.
+
+    Args:
+        path (str): Path to image file.
+
+    Returns:
+        numpy.ndarray: Image data.
+
+    """
     with tifffile.TiffFile(path) as tif:
         return tif.asarray()
 
+
 def save_image(path, img):
+    """Save numpy array data as an image file in the passed path.
+
+    Args:
+        path (str): Path to image file.
+        img (numpy.ndarray): Image data.
+
+    """
     tifffile.imsave(path, img)

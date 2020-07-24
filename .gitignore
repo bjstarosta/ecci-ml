@@ -1,5 +1,5 @@
 __pycache__/
-dae/
+cae_model/
 logs/
 datasets/*/*.tif
 datasets/*/*.txt
