@@ -29,6 +29,8 @@ _DEFAULTS = {
     'log_dir': 'logs/cae',
 
     'seed': int(datetime.datetime.utcnow().strftime('%d%m%Y')),
+    'emb_size': 512,
+
     'batch_size': 64,
     'epochs': 10,
     'learning_rate': 0.001,
@@ -148,7 +150,10 @@ def train(
         autoencoder = load_model(model_path)
     else:
         logging.info('Creating autoencoder.')
-        autoencoder = cae.build(img_shape)
+        autoencoder = cae.build(
+            img_shape,
+            embedding_size=options['emb_size']
+        )
         autoencoder.compile(
             optimizer=tf.keras.optimizers.Adamax(learning_rate=lr),
             loss=tf.keras.losses.MeanSquaredError(),
@@ -227,7 +232,7 @@ def preprocess_images(x):
     return x
 
 
-def visualise(model, x_test, fig_title='', n=9):
+def visualise(model, x_test, fig_title='', n=9, save_png=None):
     """Show matplotlib figure visualising trained autoencoder output.
 
     Figure will contain two rows of images: top row showing inputs into the
@@ -243,8 +248,11 @@ def visualise(model, x_test, fig_title='', n=9):
         n (int, optional):
             Number of columns of images to display.
 
+    Returns:
+        matplotlib.figure.Figure: Current figure object.
+
     """
-    decoded_imgs = model.predict(x_test)
+    decoded_imgs = model.predict(x_test[0:n])
 
     fig = plt.figure(figsize=(20, 4))
     fig.suptitle(fig_title, fontsize=16)
@@ -271,7 +279,7 @@ def visualise(model, x_test, fig_title='', n=9):
         if i == 0:
             ax.set_ylabel('Reconstruction')
 
-    plt.show()
+    return fig
 
 
 def load_model(path):
@@ -387,6 +395,7 @@ def main(**kwargs):
             batch=kwargs['batch_size'],
             epochs=kwargs['epochs'],
             split=kwargs['split'],
+            seed=kwargs['seed'],
             flags=flags
         )
 
@@ -397,6 +406,8 @@ def main(**kwargs):
             logging.info('Visualising noisy images using the CAE.')
             visualise(autoencoder, test[0],
                 'Prediction on images from test set')
+
+        plt.show()
 
     except KeyboardInterrupt:
         print('EXIT')
