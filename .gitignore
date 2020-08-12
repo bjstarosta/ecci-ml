@@ -1,5 +1,6 @@
 __pycache__/
 cae_model/
+bc_model/
 logs/
 datasets/*/*.tif
 datasets/*/*.txt
