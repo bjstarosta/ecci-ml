@@ -10,6 +10,7 @@ import ast
 import logging
 
 import click
+import numpy as np
 import matplotlib.pyplot as plt
 
 import cae_train
@@ -56,8 +57,28 @@ def main(**kwargs):
         fig_file = os.path.join(fig_dir, 'cae_embsize{0}.png')
         model_file = 'cae_emb{0}.h5'
         ckpt_dir = 'cae_model/checkpoints_emb{0}/'
+        dataset_dir = cae_train._DEFAULTS['dataset_dir']
 
         utils.setup_path(fig_dir)
+
+        # Loading noisy dataset
+        X = np.array(
+            utils.load_dataset(os.path.join(dataset_dir,
+                'dipoles_hc_noise'))
+            + utils.load_dataset(os.path.join(dataset_dir,
+                'dipoles_lc_noise'))
+            + utils.load_dataset(os.path.join(dataset_dir,
+                'dipoles_vlc_noise'))
+        )
+        # Loading clean dataset
+        Y = np.array(
+            utils.load_dataset(os.path.join(dataset_dir,
+                'dipoles_hc'))
+            + utils.load_dataset(os.path.join(dataset_dir,
+                'dipoles_lc'))
+            + utils.load_dataset(os.path.join(dataset_dir,
+                'dipoles_vlc'))
+        )
 
         options = cae_train._DEFAULTS
         for emb_size in kwargs['sizes']:
@@ -70,6 +91,7 @@ def main(**kwargs):
             options['checkpoint_dir'] = ckpt_dir.format(emb_size)
             options['emb_size'] = emb_size
             autoencoder, test = cae_train.train(
+                X, Y,
                 lr=options['learning_rate'],
                 batch=options['batch_size'],
                 epochs=options['epochs'],

@@ -16,7 +16,9 @@ import cae_train
 import utils
 
 
-def test_synthetic_data(model, dataset, dataset_dir='datasets/', fig_title=''):
+def test_synthetic_data(
+    model, dataset, dataset_dir='datasets/', fig_title='', n=6
+):
     """Display a figure testing autoencoder prediction on images from dataset.
 
     Args:
@@ -29,7 +31,7 @@ def test_synthetic_data(model, dataset, dataset_dir='datasets/', fig_title=''):
     Y = (Y.astype('float32') / 255.0)
     Y = np.expand_dims(Y, axis=-1)
 
-    cae_train.visualise(model, Y, fig_title, 6)
+    cae_train.visualise(model, Y, fig_title, n)
 
 
 @click.group()
@@ -67,10 +69,10 @@ def comparison(**kwargs):
 
     logging.info('Visualising synthetic data (clean).')
     test_synthetic_data(autoencoder, 'dipoles_test',
-        fig_title='Clean synthetic data comparison')
+        fig_title='Clean synthetic data comparison', n=12)
     logging.info('Visualising synthetic data (noisy).')
     test_synthetic_data(autoencoder, 'dipoles_test_noise',
-        fig_title='Noisy synthetic data comparison')
+        fig_title='Noisy synthetic data comparison', n=12)
     logging.info('Visualising ECCI data (noisy).')
     test_synthetic_data(autoencoder, 'ecci_test',
         fig_title='Experimental (ECCI) data comparison')

@@ -6,7 +6,6 @@ University of Strathclyde Physics Department
 """
 
 import os
-import errno
 import logging
 import datetime
 
@@ -39,19 +38,15 @@ _DEFAULTS = {
 
 
 def train(
-    lr, batch, epochs, split, seed=None, flags=[], options=_DEFAULTS
+    XY_train, XY_val, seed=None, flags=[], options=_DEFAULTS
 ):
     """Train and save best autoencoder model.
 
     Args:
-        lr (float):
-            Learning rate for minimizing loss during training.
-        batch (int):
-            Batch size of minibatches to use during training.
-        epochs (int):
-            Number of epochs for training model.
-        split (float):
-            Fraction of dataset to split off as test data.
+        XY_train (tuple of numpy.ndarray):
+            Training dataset.
+        XY_val (tuple of numpy.ndarray):
+            Validation dataset.
         seed (int, optional):
             Random number generator seed. If not set it will be randomised.
         flags (list of str, optional):
@@ -72,8 +67,6 @@ def train(
     Returns:
         tensorflow.keras.model.Model:
             Trained convolutional autoencoder model.
-        tuple(numpy.ndarray, numpy.ndarray):
-            Testing data for the model containing both noisy and clean input.
 
     """
     np.random.seed(seed)
@@ -84,70 +77,17 @@ def train(
     utils.setup_path(options['model_dir'])
     utils.setup_path(options['checkpoint_dir'])
 
-    # Load synthetic datasets
-    if 'sanity-test' in flags:
-        logging.info('Sanity test ENABLED: loading datasets with length=1.')
+    XY_train = (preprocess_images(XY_train[0]), preprocess_images(XY_train[1]))
+    XY_val = (preprocess_images(XY_val[0]), preprocess_images(XY_val[1]))
 
-        X = np.array(utils.load_dataset(os.path.join(options['dataset_dir'],
-            'dipoles_hc_noise'), limit=1))
-        Y = np.array(utils.load_dataset(os.path.join(options['dataset_dir'],
-            'dipoles_hc'), limit=1))
-    else:
-        # Loading noisy dataset
-        X = np.array(
-            utils.load_dataset(os.path.join(options['dataset_dir'],
-                'dipoles_hc_noise'))
-            + utils.load_dataset(os.path.join(options['dataset_dir'],
-                'dipoles_lc_noise'))
-            + utils.load_dataset(os.path.join(options['dataset_dir'],
-                'dipoles_vlc_noise'))
-        )
-        # Loading clean dataset
-        Y = np.array(
-            utils.load_dataset(os.path.join(options['dataset_dir'],
-                'dipoles_hc'))
-            + utils.load_dataset(os.path.join(options['dataset_dir'],
-                'dipoles_lc'))
-            + utils.load_dataset(os.path.join(options['dataset_dir'],
-                'dipoles_vlc'))
-        )
-
-    X = preprocess_images(X)
-    Y = preprocess_images(Y)
-
-    img_shape = X.shape[1:]
-
-    logging.debug("min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
-        np.min(X), np.max(X), np.average(X), np.var(X)
-    ))
-    logging.debug("min(Y)={0}, max(Y)={1}, avg(Y)={2}, var(Y)={3}".format(
-        np.min(Y), np.max(Y), np.average(Y), np.var(Y)
-    ))
-    logging.debug("X_shape={0}, Y_shape={1}, img_shape={2}".format(
-        X.shape, Y.shape, img_shape
-    ))
-
-    if 'sanity-test' in flags:
-        X_train = X
-        Y_train = Y
-        X_test = X
-        Y_test = Y
-        val_dataset = (X, Y)
-    else:
-        X_train, X_test, Y_train, Y_test = sklms.train_test_split(X, Y,
-            test_size=split, random_state=seed)
-        X_test, X_val = np.array_split(X_test, 2)
-        Y_test, Y_val = np.array_split(Y_test, 2)
-        val_dataset = (X_val, Y_val)
-
-    test_dataset = (X_test, Y_test)
+    img_shape = XY_train[0].shape[1:]
 
     # Load existing model for continued training if options allow
     model_path = os.path.join(options['model_dir'], options['model_file'])
     if ('overwrite-model' not in flags
     and 'sanity-test' not in flags
     and os.path.exists(model_path)):
-        autoencoder = load_model(model_path)
+        autoencoder = utils.load_model(model_path)
     else:
         logging.info('Creating autoencoder.')
         autoencoder = cae.build(
@@ -155,7 +95,8 @@ def train(
             embedding_size=options['emb_size']
         )
         autoencoder.compile(
-            optimizer=tf.keras.optimizers.Adamax(learning_rate=lr),
+            optimizer=tf.keras.optimizers.Adamax(
+                learning_rate=options['learning_rate']),
             loss=tf.keras.losses.MeanSquaredError(),
             metrics=['mse']
         )
@@ -188,11 +129,11 @@ def train(
 
     # Train the autoencoder model
     autoencoder.fit(
-        x=X_train,
-        y=Y_train,
-        epochs=epochs,
-        batch_size=batch,
-        validation_data=val_dataset,
+        x=XY_train[0],
+        y=XY_train[1],
+        epochs=options['epochs'],
+        batch_size=options['batch_size'],
+        validation_data=XY_val,
         callbacks=callbacks,
         verbose=1
     )
@@ -201,17 +142,7 @@ def train(
         logging.info('Saving model to `{0}`.'.format(model_path))
         autoencoder.save(model_path)
 
-    logging.info('Evaluating.')
-    metrics = autoencoder.evaluate(
-        X_test,
-        Y_test,
-        verbose=1
-    )
-
-    logging.info('- Loss: {:.6f}'.format(metrics[0]))
-    logging.info('- MSE: {:.6f}'.format(metrics[1]))
-
-    return autoencoder, test_dataset
+    return autoencoder
 
 
 def preprocess_images(x):
@@ -282,47 +213,71 @@ def visualise(model, x_test, fig_title='', n=9, save_png=None):
     return fig
 
 
-def load_model(path):
-    """Load a previously trained model.
+def load_dipole_dataset(split, seed=None):
+    """Load the full dipole + constant dataset and return it split.
 
     Args:
-        path (str): Path to file.
+        split (float):
+            Fraction of dataset to split off as test data.
+        seed (int, optional):
+            Random number generator seed. If not set it will be randomised.
 
     Returns:
-        tensorflow.keras.model.Model: Trained Keras model.
+        tuple: (tuple of X and Y training data, tuple of X and Y test data,
+            tuple of X and Y validation data)
 
     """
-    if os.path.exists(path):
-        logging.info('Loading model from "{0}".'.format(path))
-        return tf.keras.models.load_model(path)
-    else:
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+    # Loading noisy dataset
+    X_hc = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_hc_noise'))
+    X_lc = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_lc_noise'))
+    X_vlc = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_vlc_noise'))
+    X_const = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'constants_noise'))
+
+    # Loading clean dataset
+    Y_hc = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_hc'))
+    Y_lc = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_lc'))
+    Y_vlc = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_vlc'))
+    Y_const = utils.load_dataset(
+        os.path.join(_DEFAULTS['dataset_dir'], 'constants'))
+
+    # Splitting datasets
+    X_tr_hc, X_test_hc, Y_tr_hc, Y_test_hc = \
+        sklms.train_test_split(X_hc, Y_hc,
+            test_size=split, random_state=seed)
+    X_tr_lc, X_test_lc, Y_tr_lc, Y_test_lc = \
+        sklms.train_test_split(X_lc, Y_lc,
+            test_size=split, random_state=seed)
+    X_tr_vlc, X_test_vlc, Y_tr_vlc, Y_test_vlc = \
+        sklms.train_test_split(X_vlc, Y_vlc,
+            test_size=split, random_state=seed)
+    X_tr_const, X_test_const, Y_tr_const, Y_test_const = \
+        sklms.train_test_split(X_const, Y_const,
+            test_size=split, random_state=seed)
+
+    XY_train = (
+        np.array(X_tr_hc + X_tr_lc + X_tr_vlc + X_tr_const),
+        np.array(Y_tr_hc + Y_tr_lc + Y_tr_vlc + Y_tr_const)
+    )
+    XY_test = (
+        np.array(X_test_hc + X_test_lc + X_test_vlc + X_test_const),
+        np.array(Y_test_hc + Y_test_lc + Y_test_vlc + Y_test_const)
+    )
+    X_test, X_val = np.array_split(XY_test[0], 2)
+    Y_test, Y_val = np.array_split(XY_test[1], 2)
+    XY_test = (X_test, Y_test)
+    XY_val = (X_val, Y_val)
+
+    return XY_train, XY_test, XY_val
 
 
 @click.command(name='Training configuration')
-@click.option(
-    '-lr',
-    '--learning-rate',
-    type=float,
-    default=_DEFAULTS['learning_rate'],
-    show_default=True,
-    help="""Learning rate for minimizing loss during training."""
-)
-@click.option(
-    '-bz',
-    '--batch-size',
-    default=_DEFAULTS['batch_size'],
-    show_default=True,
-    help="""Batch size of minibatches to use during training."""
-)
-@click.option(
-    '-e',
-    '--epochs',
-    type=int,
-    default=_DEFAULTS['epochs'],
-    show_default=True,
-    help="""Number of epochs for training model."""
-)
 @click.option(
     '-ts',
     '--split',
@@ -390,21 +345,57 @@ def main(**kwargs):
         if kwargs['test'] is True:
             flags.append('sanity-test')
 
-        autoencoder, test = train(
-            lr=kwargs['learning_rate'],
-            batch=kwargs['batch_size'],
-            epochs=kwargs['epochs'],
-            split=kwargs['split'],
+        # Load synthetic datasets
+        if 'sanity-test' in flags:
+            logging.info(
+                'Sanity test ENABLED: loading datasets with length=1.')
+
+            X = np.array(utils.load_dataset(
+                os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_hc_noise'),
+                limit=1))
+            Y = np.array(utils.load_dataset(
+                os.path.join(_DEFAULTS['dataset_dir'], 'dipoles_hc'),
+                limit=1))
+            XY_train = (X, Y)
+            XY_test = (X, Y)
+            XY_val = (X, Y)
+        else:
+            XY_train, XY_test, XY_val = load_dipole_dataset(
+                kwargs['split'], kwargs['seed'])
+
+        logging.debug("min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
+            np.min(XY_train[0]), np.max(XY_train[0]),
+            np.average(XY_train[0]), np.var(XY_train[0])
+        ))
+        logging.debug("min(Y)={0}, max(Y)={1}, avg(Y)={2}, var(Y)={3}".format(
+            np.min(XY_train[1]), np.max(XY_train[1]),
+            np.average(XY_train[1]), np.var(XY_train[1])
+        ))
+
+        autoencoder = train(
+            XY_train, XY_val,
             seed=kwargs['seed'],
             flags=flags
         )
 
+        logging.info('Evaluating.')
+        XY_test = (preprocess_images(XY_test[0]),
+            preprocess_images(XY_test[1]))
+        metrics = autoencoder.evaluate(
+            XY_test[0],
+            XY_test[1],
+            verbose=1
+        )
+
+        logging.info('- Loss: {:.6f}'.format(metrics[0]))
+        logging.info('- MSE: {:.6f}'.format(metrics[1]))
+
         if kwargs['test'] is True:
             logging.info('Testing visualisation.')
-            visualise(autoencoder, test[0], 'Visualisation test', 1)
+            visualise(autoencoder, XY_test[0], 'Visualisation test', 1)
         else:
             logging.info('Visualising noisy images using the CAE.')
-            visualise(autoencoder, test[0],
+            visualise(autoencoder, XY_test[0],
                 'Prediction on images from test set')
 
         plt.show()

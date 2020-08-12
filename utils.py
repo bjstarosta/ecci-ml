@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Training supervisor utility functions.
+"""Utility functions.
 
 Author: Bohdan Starosta
 University of Strathclyde Physics Department
 """
 
 import os
+import errno
 import logging
 
 import click
+import tensorflow as tf
 import skimage.external.tifffile as tifffile
 
 
@@ -24,7 +26,7 @@ def setup_path(path):
 
 
 def load_dataset(dataset, limit=0):
-    """Load an image dataset with train/test split and attributes into memory.
+    """Load an image dataset into memory.
 
     Args:
         dataset (str):
@@ -73,6 +75,23 @@ def load_dataset(dataset, limit=0):
     ))
 
     return X
+
+
+def load_model(path):
+    """Load a previously trained model.
+
+    Args:
+        path (str): Path to file.
+
+    Returns:
+        tensorflow.keras.model.Model: Trained Keras model.
+
+    """
+    if os.path.exists(path):
+        logging.info('Loading model from "{0}".'.format(path))
+        return tf.keras.models.load_model(path)
+    else:
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
 
 def valid_image(path):
