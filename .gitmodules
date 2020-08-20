@@ -1,0 +1,3 @@
+[submodule "semgen"]
+	path = semgen
+	url = https://github.com/bjstarosta/semgen
