@@ -1,0 +1,56 @@
+{
+    "_version": 0.2,
+    "generator": "constant",
+    "global": {
+        "dim": [
+            52,
+            52
+        ],
+        "grey_limit": [
+            0.15,
+            0.85
+        ]
+    },
+    "params": [
+        {
+            "image_file": "semgen-0000.tif",
+            "range": 0.7854479644013515
+        },
+        {
+            "image_file": "semgen-0001.tif",
+            "range": 0.679129136179775
+        },
+        {
+            "image_file": "semgen-0002.tif",
+            "range": 0.3495720904326699
+        },
+        {
+            "image_file": "semgen-0003.tif",
+            "range": 0.638161458341501
+        },
+        {
+            "image_file": "semgen-0004.tif",
+            "range": 0.5291808195224791
+        },
+        {
+            "image_file": "semgen-0005.tif",
+            "range": 0.23559113275899757
+        },
+        {
+            "image_file": "semgen-0006.tif",
+            "range": 0.5596192804819847
+        },
+        {
+            "image_file": "semgen-0007.tif",
+            "range": 0.46297655398539594
+        },
+        {
+            "image_file": "semgen-0008.tif",
+            "range": 0.5498122972248252
+        },
+        {
+            "image_file": "semgen-0009.tif",
+            "range": 0.5252023998382291
+        }
+    ]
+}
