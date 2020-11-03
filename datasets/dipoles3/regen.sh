@@ -10,7 +10,7 @@ H=640
 
 # dipole
 python ${SEMGEN} -p -t ${N_PROC} generate -o -l \
-  -n ${N} -d ${W} ${H} -u ${OUT}/dipoles3/params.json ${OUT}/dipoles3 dipole
+  -n ${N} -d ${W} ${H} -u ${OUT}/dipoles3 ${OUT}/dipoles3 dipole
 
 # dipole labels
 python ${SEMGEN} -p -t ${N_PROC} generate -o \
