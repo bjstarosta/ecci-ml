@@ -17,7 +17,7 @@ python ${SEMGEN} -p -t ${N_PROC} generate -o -l \
 # dipole labels
 python ${SEMGEN} -p -t ${N_PROC} generate -o \
   -n ${N} -d ${W} ${H} ${OUT}/dipoles3_labels dipole-labels \
-  --params ${OUT}dipoles3
+  --params ${OUT}/dipoles3
 
 # sem noise
 # python ${SEMGEN} -p -t ${N_PROC} distort -o \
