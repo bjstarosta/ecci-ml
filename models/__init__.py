@@ -35,7 +35,7 @@ def path(model_id, basename=False):
         return os.path.join(PATH_MODELS, bn)
 
 
-def load_model(model_id, vars={}):
+def load_model(model_id):
     """Load a model schema using the given identifier.
 
     Loads the target file, runs the build() function and returns the result.
@@ -44,25 +44,26 @@ def load_model(model_id, vars={}):
 
     Args:
         model_id (str): Model identifier.
-        vars (dict): Dictionary of arguments for the build function.
-            See the model schema files for argument descriptions.
 
     Returns:
-        tensorflow.keras.Model: Built Keras model.
-        Python module of the loaded model.
+        module: Python module of the loaded model.
 
     """
     if model_exists(model_id):
         logger.info('Loading model `{0}`.'.format(model_id))
         mod = importlib.import_module('models.' + model_id)
-        return mod.build(**vars), mod
+        return mod
     else:
         raise FileNotFoundError(
             errno.ENOENT, os.strerror(errno.ENOENT), path(model_id))
 
 
-def list_models():
+def list_models(with_desc=False):
     """List all model schemas present in the directory.
+
+    Args:
+        with_desc (bool): If True, the returned list will be a list of tuples
+            containing dataset ID, dataset __doc__.
 
     Returns:
         list: List of model identifiers.
@@ -74,7 +75,12 @@ def list_models():
             continue
         if f in ['__init__.py']:
             continue
-        lst.append(os.path.splitext(f)[0])
+        f_ = os.path.splitext(f)[0]
+        if with_desc is True:
+            mod = importlib.import_module('models.' + f_)
+            lst.append((f_, mod.__doc__))
+        else:
+            lst.append(f_)
     return sorted(lst)
 
 

@@ -23,7 +23,7 @@ class Dipoles(datasets.Dataset):
         if limit is not None:
             if limit < 4:
                 raise datasets.DatasetException('Limit must be at least 4.')
-            limit = limit / 4
+            limit = np.floor(limit / 4)
         # noisy dataset
         self.X_train = np.array(
             self.load_images_from_dir('dipoles_hc_noise', limit)

@@ -67,12 +67,16 @@ def load_dataset(ds_id, rs=None):
             errno.ENOENT, os.strerror(errno.ENOENT), path(ds_id))
 
 
-def list_datasets():
+def list_datasets(with_desc=False):
     """List all valid datasets present in the directory.
 
     A valid dataset must have a __init__.py file in its directory that
     defines a subclass of datasets.Dataset with method overrides for
     any dataset specific data organisation.
+
+    Args:
+        with_desc (bool): If True, the returned list will be a list of tuples
+            containing dataset ID, dataset __doc__.
 
     Returns:
         list: List of valid datasets.
@@ -86,7 +90,11 @@ def list_datasets():
         pi = os.path.join(p, '__init__.py')
         if not os.path.exists(pi) or not os.path.isfile(pi):
             continue
-        lst.append(f)
+        if with_desc is True:
+            mod = importlib.import_module('datasets.' + f)
+            lst.append((f, mod.__doc__))
+        else:
+            lst.append(f)
     return sorted(lst)
 
 
@@ -221,23 +229,23 @@ class Dataset(object):
         """
         raise NotImplementedError()
 
-    def map(self, fn):
-        """Map a function onto the entire dataset.
+    def apply(self, fn):
+        """Apply a function onto the entire dataset.
 
         Args:
-            fn (function): Function to be mapped onto the dataset.
+            fn (function): Function to be applied onto the dataset.
 
         Returns:
             None
 
         """
-        fn_ = np.vectorize(fn)
-        self.X_train = fn_(self.X_train)
-        self.X_test = fn_(self.X_test)
-        self.X_val = fn_(self.X_val)
-        self.Y_train = fn_(self.Y_train)
-        self.Y_test = fn_(self.Y_test)
-        self.Y_val = fn_(self.Y_val)
+        # fn_ = np.vectorize(fn)
+        self.X_train = fn(self.X_train)
+        self.X_test = fn(self.X_test)
+        self.X_val = fn(self.X_val)
+        self.Y_train = fn(self.Y_train)
+        self.Y_test = fn(self.Y_test)
+        self.Y_val = fn(self.Y_val)
 
     def split(self, test_split=0.2, val_split=0.5):
         """Split the loaded dataset into training, test and validation sets.
@@ -343,7 +351,7 @@ class Dataset(object):
             click.format_filename(path)
         ))
 
-        return X
+        return np.array(X)
 
     class DatasetException(Exception):
         """Base class for other exceptions."""

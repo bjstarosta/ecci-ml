@@ -8,7 +8,6 @@ Author: Bohdan Starosta
 University of Strathclyde Physics Department
 """
 
-import numpy as np
 import datasets
 
 

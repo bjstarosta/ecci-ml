@@ -9,6 +9,9 @@ datasets/*/*.txt
 datasets/*/*/*.txt
 datasets/*/*.csv
 datasets/*/*/*.csv
+datasets/*/*-slurm.sh
+
+weights/*.h5
 
 bc_model/
 cae_model/

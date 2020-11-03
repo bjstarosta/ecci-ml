@@ -11,25 +11,23 @@ import tensorflow.keras.layers as L
 import numpy as np
 
 
-def build(
-    input_shape=(52, 52, 1), filters=[64, 128, 256], embedding_size=512
-):
+es_callback = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss',
+    min_delta=1e-2,
+    patience=2,
+    verbose=1
+)
+
+
+def build(lr):
     """Return a convolutional autoencoder model.
 
-    Args:
-        input_shape (tuple):
-            Tuple of integers containing shape (width, height, channel number)
-            of dataset.
-        filters (list):
-            Integer, the dimensionality of the output space (i.e. the number of
-            output filters in the convolution).
-        embedding_size (int):
-            Size of the autoencoder embedding (encoder output dim).
-
     Returns:
-        tensorflow.keras.model.Model:
-            The autoencoder model.
+        tensorflow.keras.Model: The autoencoder model.
     """
+    input_shape = (52, 52, 1)
+    filters = [512, 256, 64]
+    embedding_size = 512
     activation = tf.nn.relu
 
     # Encoder (Image -> Embedding)
@@ -64,7 +62,61 @@ def build(
     for layer in layers:
         autoencoder.add(layer)
 
+    autoencoder.compile(
+        optimizer=tf.keras.optimizers.Adamax(learning_rate=lr),
+        loss=tf.keras.losses.MeanSquaredError(),
+        metrics=['mse']
+    )
+
     return autoencoder
+
+
+def pack_data(X):
+    """Convert array of images to machine trainable data.
+
+    Args:
+        X (numpy.ndarray): Image data represented as a single image
+            or array of images.
+
+    Returns:
+        numpy.ndarray: Transformed image data.
+
+    """
+    # scale image data to (0, 1)
+    X = (X.astype('float32') / 255.0)
+    # add channel dimension
+    X = np.expand_dims(X, axis=-1)
+    return X
+
+
+def unpack_data(X):
+    """Convert neural network output data back to images.
+
+    Args:
+        X (numpy.ndarray): Transformed image data.
+
+    Returns:
+        numpy.ndarray: Image data represented as a single image
+            or array of images.
+
+    """
+    # process predictions back into usable data
+    pass
+
+
+def metrics(m, log):
+    """Output model evaluation metrics to the logger.
+
+    Args:
+        m (tuple): Result of tensorflow.keras.Model.evaluate()
+        log (logging.Logger): Logger to log the metric data to.
+
+    Returns:
+        None
+
+    """
+    log.info('Loss: {:.6f}'.format(m[0]))
+    log.info('MSE: {:.6f}'.format(m[1]))
 
 
 if __name__ == '__main__':

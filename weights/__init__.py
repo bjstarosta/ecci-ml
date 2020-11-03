@@ -60,16 +60,18 @@ def available(model_id, iter_id='0'):
     """
     decimal = iter_id.isdecimal()
     new_iter_id = iter_id
-    i = 0
+    i = 1
     while True:
         p = path(model_id, new_iter_id)
         if not os.path.exists(p):
             break
-        if decimal:
-            new_iter_id = str(int(new_iter_id) + 1)
-        else:
-            new_iter_id = str(iter_id) + '_' + str(i)
-            i += 1
+        # if decimal:
+        #     new_iter_id = str(int(new_iter_id) + 1)
+        # else:
+        #     new_iter_id = str(iter_id) + '_' + str(i)
+        #     i += 1
+        new_iter_id = str(iter_id) + '_' + str(i)
+        i += 1
     return model_id, new_iter_id
 
 
@@ -121,8 +123,11 @@ def list_weights(model_id=None):
     return sorted(lst, key=lambda k: k[0] + k[1])
 
 
-def weights_exist(model_id, iter_id):
+def weights_exist(model_id, iter_id=None):
     """Check if a saved model with the given model and iteration exists.
+
+    If no iteration identifier is given, the function will check if any
+    iteration is present.
 
     Args:
         model_id (str): The identifier of the model.
@@ -132,7 +137,14 @@ def weights_exist(model_id, iter_id):
         bool: True if saved model exists, False otherwise.
 
     """
-    return os.path.exists(path(model_id, iter_id))
+    if iter_id is not None:
+        return os.path.exists(path(model_id, iter_id))
+    else:
+        lst = list_weights(model_id)
+        if len(lst) > 0:
+            return True
+        else:
+            return False
 
 
 def save_weights(model, model_id, iter_id=None):
