@@ -58,7 +58,7 @@ def available(model_id, iter_id='0'):
         tuple: Tuple containing the model ID and the iteration ID respectively.
 
     """
-    decimal = iter_id.isdecimal()
+    # decimal = iter_id.isdecimal()
     new_iter_id = iter_id
     i = 1
     while True:
