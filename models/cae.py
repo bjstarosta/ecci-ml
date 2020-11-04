@@ -19,13 +19,12 @@ es_callback = tf.keras.callbacks.EarlyStopping(
 )
 
 
-def build(lr):
+def build(lr=0.001, input_shape=(52, 52, 1)):
     """Return a convolutional autoencoder model.
 
     Returns:
         tensorflow.keras.Model: The autoencoder model.
     """
-    input_shape = (52, 52, 1)
     filters = [512, 256, 64]
     embedding_size = 512
     activation = tf.nn.relu
