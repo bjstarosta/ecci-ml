@@ -165,7 +165,11 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     out_2 = L.Activation('tanh')(out)
 
     model = K.Model(inputs=inputs, outputs=out_2)
-    model.compile(optimizer=K.optimizers.Adam(lr=lr), loss=K.losses.Huber())
+    model.compile(
+        optimizer=K.optimizers.Adam(lr=lr),
+        loss=K.losses.Huber(),
+        metrics=[K.metrics.MeanSquaredError()]
+    )
 
     return model
 

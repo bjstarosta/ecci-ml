@@ -118,7 +118,7 @@ def train(
 
     logger.info('Evaluating.')
     metrics = model_nn.evaluate(ds.X_test, ds.Y_test, verbose=1)
-    model.metrics(metrics)
+    model.metrics(metrics, logger)
 
     weights_id = weights.available(model_id, str(seed))
     weights_path = weights.path(weights_id[0], weights_id[1])
@@ -129,5 +129,5 @@ def train(
     return model_nn
 
 
-def predict():
-    pass
+def predict(X, model):
+    model.predict(X)
