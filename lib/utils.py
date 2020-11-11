@@ -77,3 +77,22 @@ def save_image(path, img):
 
     """
     tifffile.imsave(path, img)
+
+
+class ImageSequence(object):
+
+    def __init__(self, pathlist):
+        self.lst = pathlist
+
+    def __getitem__(self, index):
+        """Get item at specified index."""
+        return self.lst[index]
+
+    def __len__(self):
+        """Return length of sequence."""
+        return len(self.lst)
+
+    def __iter__(self):
+        """Create a generator that iterates over the sequence."""
+        for item in (self[i] for i in range(len(self))):
+            yield load_image(item)

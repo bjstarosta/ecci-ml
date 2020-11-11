@@ -19,8 +19,10 @@ PATH_WEIGHTS = os.path.dirname(os.path.abspath(__file__))
 FN_WEIGHTS = '{0}_{1}.h5'
 FN_LOG = '{0}_{1}.log'
 
-_FN_WEIGHTS_RE = re.sub(r'\{([0-9]+)\}', r'(?P<g\1>\\S+)', FN_WEIGHTS)
-_FN_LOG_RE = re.sub(r'\{([0-9]+)\}', r'(?P<g\1>\\S+)', FN_LOG)
+_FN_WEIGHTS_RE = re.compile(
+    re.sub(r'\{([0-9]+)\}', r'(?P<g\1>\\S+?)', FN_WEIGHTS))
+_FN_LOG_RE = re.compile(
+    re.sub(r'\{([0-9]+)\}', r'(?P<g\1>\\S+?)', FN_LOG))
 
 
 def path(model_id, iter_id, basename=False, fmt=FN_WEIGHTS):
@@ -44,6 +46,24 @@ def path(model_id, iter_id, basename=False, fmt=FN_WEIGHTS):
         return bn
     else:
         return os.path.join(PATH_WEIGHTS, bn)
+
+
+def path_decode(path):
+    """Decode a path to a valid weights file into relevant identifiers.
+
+    Args:
+        path (str): Path to file or full filename.
+
+    Returns:
+        tuple: Tuple consisting of the model ID and iteration ID.
+            Function can also return None if the path was not valid.
+
+    """
+    m = _FN_WEIGHTS_RE.match(os.path.basename(path))
+    if m is None:
+        return None
+    else:
+        return m.group('g0', 'g1')
 
 
 def available(model_id, iter_id='0'):
@@ -112,14 +132,11 @@ def list_weights(model_id=None):
 
     """
     lst = []
-    ptn = re.compile(_FN_WEIGHTS_RE)
     for f in os.listdir(PATH_WEIGHTS):
-        m = ptn.match(f)
-        if m is None:
+        m = path_decode(f)
+        if m is None or (model_id is not None and m[0] != model_id):
             continue
-        if model_id is not None and m.group('g0') != model_id:
-            continue
-        lst.append((m.group('g0'), m.group('g1')))
+        lst.append(m)
     return sorted(lst, key=lambda k: k[0] + k[1])
 
 

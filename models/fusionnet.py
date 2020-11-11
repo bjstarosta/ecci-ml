@@ -126,38 +126,38 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     inputs = L.Input(input_shape)
     n_filters = 32
 
-    def act_fn(input):
+    def act_fn_encoder(input):
         return L.LeakyReLU(alpha=0.2)(input)
 
-    def act_fn_2(input):
+    def act_fn_decoder(input):
         return L.ReLU()(input)
 
     # encoder
-    down_1 = conv_residual_conv(n_filters * 1, act_fn, inputs)
+    down_1 = conv_residual_conv(n_filters * 1, act_fn_encoder, inputs)
     pool_1 = maxpool(down_1)
-    down_2 = conv_residual_conv(n_filters * 2, act_fn, pool_1)
+    down_2 = conv_residual_conv(n_filters * 2, act_fn_encoder, pool_1)
     pool_2 = maxpool(down_2)
-    down_3 = conv_residual_conv(n_filters * 4, act_fn, pool_2)
+    down_3 = conv_residual_conv(n_filters * 4, act_fn_encoder, pool_2)
     pool_3 = maxpool(down_3)
-    down_4 = conv_residual_conv(n_filters * 8, act_fn, pool_3)
+    down_4 = conv_residual_conv(n_filters * 8, act_fn_encoder, pool_3)
     pool_4 = maxpool(down_4)
 
     # bridge
-    bridge = conv_residual_conv(n_filters * 16, act_fn, pool_4)
+    bridge = conv_residual_conv(n_filters * 16, act_fn_encoder, pool_4)
 
     # decoder
-    deconv_1 = conv_trans_block(n_filters * 8, act_fn_2, bridge)
+    deconv_1 = conv_trans_block(n_filters * 8, act_fn_decoder, bridge)
     skip_1 = (deconv_1 + down_4) / 2
-    up_1 = conv_residual_conv(n_filters * 8, act_fn_2, skip_1)
-    deconv_2 = conv_trans_block(n_filters * 4, act_fn_2, up_1)
+    up_1 = conv_residual_conv(n_filters * 8, act_fn_decoder, skip_1)
+    deconv_2 = conv_trans_block(n_filters * 4, act_fn_decoder, up_1)
     skip_2 = (deconv_2 + down_3) / 2
-    up_2 = conv_residual_conv(n_filters * 4, act_fn_2, skip_2)
-    deconv_3 = conv_trans_block(n_filters * 2, act_fn_2, up_2)
+    up_2 = conv_residual_conv(n_filters * 4, act_fn_decoder, skip_2)
+    deconv_3 = conv_trans_block(n_filters * 2, act_fn_decoder, up_2)
     skip_3 = (deconv_3 + down_2) / 2
-    up_3 = conv_residual_conv(n_filters * 2, act_fn_2, skip_3)
-    deconv_4 = conv_trans_block(n_filters * 1, act_fn_2, up_3)
+    up_3 = conv_residual_conv(n_filters * 2, act_fn_decoder, skip_3)
+    deconv_4 = conv_trans_block(n_filters * 1, act_fn_decoder, up_3)
     skip_4 = (deconv_4 + down_1) / 2
-    up_4 = conv_residual_conv(n_filters * 1, act_fn_2, skip_4)
+    up_4 = conv_residual_conv(n_filters * 1, act_fn_decoder, skip_4)
 
     # output
     out = L.Conv2D(input_shape[2],
@@ -203,8 +203,9 @@ def unpack_data(X):
             or array of images.
 
     """
-    # process predictions back into usable data
-    pass
+    X = X * 255.0
+    X = X.astype('uint8')
+    return X
 
 
 def metrics(m, log):

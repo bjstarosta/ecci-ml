@@ -99,8 +99,9 @@ def unpack_data(X):
             or array of images.
 
     """
-    # process predictions back into usable data
-    pass
+    X = X * 255.0
+    X = X.astype('uint8')
+    return X
 
 
 def metrics(m, log):

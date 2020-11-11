@@ -18,5 +18,6 @@ cae_model/
 cae_model_dipole2/
 cae_model_old/
 
+*-slurm.sh
 *.TIF
 *.png

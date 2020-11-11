@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Training supervisor.
+"""Training interface.
 
 Author: Bohdan Starosta
 University of Strathclyde Physics Department

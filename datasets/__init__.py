@@ -9,8 +9,10 @@ import os
 import errno
 import importlib
 import inspect
+import math
 
 import numpy as np
+import tensorflow.keras as K
 import sklearn.model_selection as ms
 import click
 
@@ -353,7 +355,41 @@ class Dataset(object):
 
         return np.array(X)
 
-    class DatasetException(Exception):
-        """Base class for other exceptions."""
 
-        pass
+class DatasetSequence(K.utils.Sequence):
+    """Sequence generator class implementation.
+
+    Args:
+        x (numpy.ndarray): List of image filenames.
+        y (numpy.ndarray): List of image filenames.
+        batch_size (int): Batch size.
+
+    Attributes:
+        x
+        y
+        batch_size
+
+    """
+
+    def __init__(self, x, y, batch_size):
+        self.x = x
+        self.y = y
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
+
+    def __getitem__(self, idx):
+        batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        return (
+            np.array([utils.load_image(im) for im in batch_x]),
+            np.array([utils.load_image(im) for im in batch_y])
+        )
+
+
+class DatasetException(Exception):
+    """Base class for other exceptions."""
+
+    pass

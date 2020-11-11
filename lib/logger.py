@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 def start_stream_log():
     """Set up the stream log handler."""
     c_handler = logging.StreamHandler()
-    c_handler.setLevel(logging.INFO)
+    c_handler.setLevel(logging.DEBUG)
     c_handler.setFormatter(logging.Formatter(
         '[%(levelname)s] %(asctime)s - %(message)s'))
     logger.addHandler(c_handler)
@@ -33,7 +33,7 @@ def start_stream_log():
 def start_file_log():
     """Set up the file log handler."""
     f_handler = logging.FileHandler(PATH_CUR_LOG)
-    f_handler.setLevel(logging.INFO)
+    f_handler.setLevel(logging.DEBUG)
     f_handler.setFormatter(logging.Formatter(
         '[%(asctime)s - %(levelname)s] %(message)s'))
     logger.addHandler(f_handler)

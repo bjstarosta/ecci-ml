@@ -129,5 +129,27 @@ def train(
     return model_nn
 
 
-def predict(X, model):
-    model.predict(X)
+def predict(X, model_id, weights_id):
+    """Output predictions for input samples using selected trained model.
+
+    Args:
+        X (numpy.ndarray): Input data to use for predictions.
+        model_id (str): Model identifier in string format.
+        weights_id (tuple): Weights file identifier in tuple of strings format.
+            The tuple should be of the form: (model_id, iteration_id).
+
+    Returns:
+        numpy.ndarray: Predictions.
+
+    """
+    model = models.load_model(model_id)
+    model_nn = weights.load_weights(weights_id[0], weights_id[1])
+
+    X = model.pack_data(X)
+    logger.debug("min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
+        np.min(X), np.max(X), np.average(X), np.var(X)
+    ))
+
+    pred = model_nn.predict(X)
+    pred = model.unpack_data(pred)
+    return pred
