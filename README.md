@@ -1,6 +1,28 @@
-# ecci_ml
-Scripts covering (mostly) unsupervised attempts at finding and labelling dislocations in ECCI images of GaN.
+# Machine learning assisted detection of threading dislocations in ECC images
 
-The `datasets` directory containes archives that must be unpacked to the same directory before running any of the scripts. Upon first run of a training script two more directories will be created: `logs` for Tensorboard visualisation (use `tensorboard --logdir=./logs/[script prefix]`), and a directory containing the script prefix that will hold checkpoints and saved models for later reuse.
+## Install
 
-All scripts use click to enable command line functionality. Use the `--help` parameter for usage instructions.
+Use `env.txt` to replicate the Anaconda environment using:
+```
+$ conda create --name <env_name> --file env.txt
+```
+
+Once you activate the environment, you may want to (re)generate some of the synthetic datasets used. Navigate to the `datasets/` directory and use the bash scripts within to do this. In each dataset directory there are two bash scripts:
+* `gen.sh` - generates new data based on random variables
+* `regen.sh` - regenerates data in the exact same state as was used for training
+
+Look at the bash scripts and `semgen/semgen.py --help` for documentation of the commands used.
+
+## Usage
+
+All scripts use [Click](https://github.com/pallets/click) to enable command line functionality. Use the `--help` parameter for usage instructions.
+
+**Entry points:**
+```
+$ python train.py
+$ python predict.py
+```
+
+## License
+
+[GNU GPL v.3](https://github.com/bjstarosta/ecci_ml/blob/master/LICENSE)
