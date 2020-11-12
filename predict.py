@@ -110,6 +110,8 @@ def image_dir(ctx, **kwargs):
 
     X = np.array(X)
 
+    logger.info('Prediction starts.')
+
     try:
         Y = lib.tf.predict(X, ctx.obj['model'], ctx.obj['weights'])
     except Exception:
