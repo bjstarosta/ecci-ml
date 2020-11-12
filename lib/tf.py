@@ -84,7 +84,10 @@ def train(
     else:
         logger.info(
             'Pre-trained weights not used. Building model from scratch.')
-        model_nn = model.build(options['learning_rate'])
+        input_shape = ds.X_train[0].shape
+        logger.info(
+            'Using input shape: {0}.'.format(input_shape))
+        model_nn = model.build(options['learning_rate'], input_shape)
 
     # Define callbacks
     callbacks = []
