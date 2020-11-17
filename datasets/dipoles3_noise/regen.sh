@@ -17,7 +17,7 @@ python ${SEMGEN} -p -t ${N_PROC} generate -o -l \
 
 # sem noise
 python ${SEMGEN} -p -t ${N_PROC} distort -o \
-  ${OUT}dipoles3_clean ${OUT}/dipoles3 semnoise \
+  ${OUT}/dipoles3_clean ${OUT}/dipoles3 semnoise \
   --gaussian-size 7 \
   --scan-passes 1
 
