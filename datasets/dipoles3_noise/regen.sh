@@ -8,7 +8,7 @@ N=4000  # number of images to generate
 W=640
 H=640
 
-mkdir -p ${OUT}/dipoles3_clean
+mkdir -p ${OUT}/dipoles3
 mkdir -p ${OUT}/dipoles3_labels
 
 # dipole
