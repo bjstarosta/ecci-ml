@@ -149,10 +149,18 @@ def predict(X, model_id, weights_id):
     model_nn = weights.load_weights(weights_id[0], weights_id[1])
 
     X = model.pack_data(X)
-    logger.debug("min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
-        np.min(X), np.max(X), np.average(X), np.var(X)
-    ))
+    logger.debug(
+        "after pack: min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
+            np.min(X), np.max(X), np.average(X), np.var(X)
+        )
+    )
 
     pred = model_nn.predict(X)
+    logger.debug(
+        "after predict: min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
+            np.min(pred), np.max(pred), np.average(pred), np.var(pred)
+        )
+    )
+
     pred = model.unpack_data(pred)
     return pred
