@@ -187,6 +187,8 @@ def pack_data(X):
     """
     # scale image data to (0, 1)
     X = (X.astype('float32') / 255.0)
+    # pad image
+    X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
     # add channel dimension
     X = np.expand_dims(X, axis=-1)
     return X
@@ -203,6 +205,14 @@ def unpack_data(X):
             or array of images.
 
     """
+    # unpad image
+    X_ = []
+    for i in X:
+        X_.append(i[64:-64, 64:-64])
+    X = np.array(X_)
+    # clip image data to avoid out of bounds values
+    X = np.clip(X, 0., 1.)
+    # convert float to greyscale int
     X = X * 255.0
     X = X.astype('uint8')
     return X
