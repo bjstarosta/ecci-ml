@@ -14,10 +14,7 @@ datasets/*/*-slurm.sh
 
 weights/*.h5
 
-bc_model/
-cae_model/
-cae_model_dipole2/
-cae_model_old/
+_old/
 
 *-slurm.sh
 *.TIF
