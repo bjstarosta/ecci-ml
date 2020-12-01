@@ -4,13 +4,14 @@ logs/*/*
 weights/*/
 tests/
 
-datasets/*/*.tif
 datasets/*/*/*.tif
 datasets/*/*.txt
 datasets/*/*/*.txt
 datasets/*/*.csv
 datasets/*/*/*.csv
 datasets/*/*-slurm.sh
+
+datasets/ecci_test
 
 weights/*.h5
 
