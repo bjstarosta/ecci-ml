@@ -242,12 +242,18 @@ class Dataset(object):
 
         """
         # fn_ = np.vectorize(fn)
-        self.X_train = fn(self.X_train)
-        self.X_test = fn(self.X_test)
-        self.X_val = fn(self.X_val)
-        self.Y_train = fn(self.Y_train)
-        self.Y_test = fn(self.Y_test)
-        self.Y_val = fn(self.Y_val)
+        if len(self.X_train) > 0:
+            self.X_train = fn(self.X_train)
+        if len(self.X_test) > 0:
+            self.X_test = fn(self.X_test)
+        if len(self.X_val) > 0:
+            self.X_val = fn(self.X_val)
+        if len(self.Y_train) > 0:
+            self.Y_train = fn(self.Y_train)
+        if len(self.Y_test) > 0:
+            self.Y_test = fn(self.Y_test)
+        if len(self.Y_val) > 0:
+            self.Y_val = fn(self.Y_val)
 
     def split(self, test_split=0.2, val_split=0.5):
         """Split the loaded dataset into training, test and validation sets.
