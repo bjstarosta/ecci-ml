@@ -148,6 +148,11 @@ def predict(X, model_id, weights_id):
     model = models.load_model(model_id)
     model_nn = weights.load_weights(weights_id[0], weights_id[1])
 
+    single_image = False
+    if len(X.shape) == 2:
+        single_image = True
+        X = np.array([X])
+
     X = model.pack_data(X)
     logger.debug(
         "after pack: min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
@@ -163,4 +168,8 @@ def predict(X, model_id, weights_id):
     )
 
     pred = model.unpack_data(pred)
+
+    if single_image is True:
+        pred = np.squeeze(pred)
+
     return pred
