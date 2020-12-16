@@ -27,6 +27,12 @@ python ${TOOLS} -v augm \
 python ${TOOLS} -v augm \
   -i ${OUT}/naresh_slide3_ground.tif \
   -o ${OUT}/tmp2a/
+python ${TOOLS} -v augm \
+  -i ${OUT}/ECCI53p5No3rotImage3bHD1.tif \
+  -o ${OUT}/tmp1a/
+python ${TOOLS} -v augm \
+  -i ${OUT}/ECCI53p5No3rotImage3bHD1_ground.tif \
+  -o ${OUT}/tmp2a/
 
 # split
 mkdir -p ${OUT}/tmp1b
