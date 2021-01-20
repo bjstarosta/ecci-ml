@@ -112,7 +112,7 @@ ax.imshow(image_padded, cmap=plt.cm.gray)
 
 # Perform predictions
 try:
-    Y = lib.tf.predict(X, 'fusionnet', ('fusionnet', '20201203'))
+    Y = lib.tf.predict(X, 'fusionnet', ('fusionnet', '20201216_1'))
 except Exception:
     logger.error("Unrecoverable error.", exc_info=True)
     exit(1)
@@ -174,7 +174,7 @@ for i, Y_ in enumerate(Y):
     # Blob detection begins here.
     # This line is what slows down this loop.
     blobs_log = skimage.feature.blob_log(Y_,
-        max_sigma=17, num_sigma=15, threshold=.1)
+        min_sigma=3, max_sigma=15, num_sigma=15, threshold=.1)
 
     # Compute blob radius and clip its values.
     blobs_log[:, 2] = np.clip(blobs_log[:, 2] * np.sqrt(2), min_r, max_r)
@@ -218,9 +218,11 @@ print('TDs found initially: ', len(tds))
 # In [ ]
 
 td_border = 3  # get rid of all TDs within this many pixels of the border
-tolerance = 5  # merge all TDs found within this many pixels
+tolerance = 2  # allow this many pixels of overlap
 
 tds_pruned = []
+
+# First pass for bad candidates
 for i, td in enumerate(tds):
     (y, x, r, pred) = td
 
@@ -233,22 +235,44 @@ for i, td in enumerate(tds):
     if pred < 0.01:
         continue
 
-    # Merge TDs close to each other
-    found = None
+    tds_pruned.append(td)
+
+# Second pass for prediction ranking
+
+# All dislocations should intersect four times with a very close neighbour
+# We find those four times and use the one with highest pred then average
+# the pred.
+tds_final = []
+tds_visited = []
+
+for i, td in enumerate(tds_pruned):
+    if i in tds_visited:
+        continue
+
+    overlap = [td]
+
+    # find all overlapping TDs
     for j, td_ in enumerate(tds_pruned):
-        dx = x - td_[1]
-        dy = y - td_[0]
+        dx = td[1] - td_[1]
+        dy = td[0] - td_[0]
         d = np.hypot(dx, dy)
-        if d < tolerance:
-            found = td_
-            break
+        if d >= (td[2] + td_[2] - tolerance):
+            continue
 
-    if found is None:
-        tds_pruned.append(td)
-    else:
-        tds_pruned[j] = (td_[0], td_[1], td_[2], np.average([td_[3], pred]))
+        overlap.append(td_)
+        tds_visited.append(j)
 
-print('TDs after pruning: ', len(tds_pruned))
+    # sort by prediction confidence
+    overlap = sorted(overlap, key=lambda x: x[3], reverse=True)
+
+    # prediction confidence should always be an average of 4 overlapping
+    overlap = overlap[:4]
+    overlap += [(None, None, None, 0)] * (4 - len(overlap))
+    pred = np.average([x[3] for x in overlap])
+
+    tds_final.append((overlap[0][0], overlap[0][1], overlap[0][2], pred))
+
+print('TDs after pruning: ', len(tds_final))
 
 
 # In [ ]
@@ -266,7 +290,7 @@ for i, blob in enumerate(blobs):
     blobs[i] = blob[top + bc:bottom - bc, left + bc:right - bc]
 
 
-fig, ax = plt.subplots(ncols=2, nrows=2, figsize=(12, 8), sharey=True)
+fig, ax = plt.subplots(ncols=2, nrows=2, figsize=(20, 16), sharey=True)
 ax[0, 0].imshow(blobs[0], cmap=plt.cm.gray)
 ax[0, 0].set_title('Left')
 ax[0, 1].imshow(blobs[1], cmap=plt.cm.gray)
@@ -278,10 +302,14 @@ ax[1, 0].set_title('Bottom')
 
 # In [ ]
 
-fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(16, 8))
+fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(20, 12))
 patches_mpl = []
 colours = []
-for td in tds_pruned:
+td_n = 0
+for td in tds_final:
+    if td[3] < 0.33:
+        continue
+
     ax.annotate("{:.2f}".format(td[3]), (td[1], td[0]),
         xytext=(0, 12), textcoords='offset pixels',
         color='w', fontsize=10, ha='center', va='center')
@@ -289,6 +317,7 @@ for td in tds_pruned:
     colours.append(td[3])
     patches_mpl.append(
         matplotlib.patches.Circle((td[1], td[0]), td[2]))
+    td_n += 1
 
 p = matplotlib.collections.PatchCollection(patches_mpl,
     cmap=matplotlib.cm.jet_r, alpha=0.5)
@@ -300,9 +329,9 @@ fig.colorbar(p)
 
 ax.imshow(image, cmap=plt.cm.gray)
 fig.suptitle('TD location prediction',
-    size=16, weight='bold')
+    size=24, weight='bold')
 ax.set_title('{0} TDs found. Numbers indicate prediction confidence.'.format(
-    len(tds_pruned)))
+    td_n))
 fig.tight_layout()
 
 plt.show()
