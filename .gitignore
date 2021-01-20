@@ -12,11 +12,14 @@ datasets/*/*/*.csv
 datasets/*/*-slurm.sh
 
 datasets/ecci_test
+datasets/gap001
 
 weights/*.h5
 
 _old/
 
+slurm_*
 *-slurm.sh
 *.TIF
 *.png
+test*.py
