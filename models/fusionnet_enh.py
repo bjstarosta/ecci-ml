@@ -192,7 +192,7 @@ def pack_data(X):
         X_.append(skimage.exposure.equalize_adapthist(i, clip_limit=0.01))
     X = np.array(X_)
     # scale image data to (0, 1)
-    X = (X.astype('float32') / 255.0)
+    X = (X.astype('float32') / 1)  # / 255)
     # pad image
     X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
     # add channel dimension
