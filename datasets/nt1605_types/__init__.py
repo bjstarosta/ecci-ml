@@ -17,8 +17,8 @@ class nt1605_types(datasets.Dataset):
     def __init__(self):
         super().__init__()
 
-        self.desc = 'Experimental images of AlGaN (15% AlN, Tyndall) w/ ground'
-        + ' truth (incl. TD types)'
+        self.desc = ('Experimental images of AlGaN (15% AlN, Tyndall) w/'
+        + ' ground truth (incl. TD types)')
         self.generated = '2021-02-03'
 
     def load(self, limit=None):
