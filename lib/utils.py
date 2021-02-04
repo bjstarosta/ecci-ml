@@ -7,6 +7,8 @@ University of Strathclyde Physics Department
 
 import os
 import datetime
+
+import imageio
 try:
     import skimage.external.tifffile as tifffile
 except ImportError:
@@ -49,7 +51,7 @@ def valid_image(path):
     if not os.path.isfile(path):
         return False
     _, ext = os.path.splitext(path.lower())
-    if ext != '.tif' and ext != '.tiff':
+    if ext != '.tif' and ext != '.tiff' and ext != '.png':
         return False
     return True
 
@@ -64,8 +66,17 @@ def load_image(path):
         numpy.ndarray: Image data.
 
     """
-    with tifffile.TiffFile(path) as tif:
-        return tif.asarray()
+    if not os.path.isfile(path):
+        return None
+    _, ext = os.path.splitext(path.lower())
+
+    if ext == '.tif' or ext == '.tiff':
+        with tifffile.TiffFile(path) as tif:
+            return tif.asarray()
+    elif ext == '.png':
+        return imageio.imread(path)
+    else:
+        return None
 
 
 def save_image(path, img):
@@ -76,7 +87,12 @@ def save_image(path, img):
         img (numpy.ndarray): Image data.
 
     """
-    tifffile.imsave(path, img)
+    _, ext = os.path.splitext(path.lower())
+
+    if ext == '.tif' or ext == '.tiff':
+        tifffile.imsave(path, img)
+    elif ext == '.png':
+        imageio.imsave(path, img)
 
 
 class ImageSequence(object):
