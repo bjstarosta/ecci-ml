@@ -61,7 +61,6 @@ def load_dataset(ds_id, rs=None):
         ds = getattr(mod, cls)()
         ds.id = ds_id
         ds.basepath = path(ds_id)
-        ds.rs = rs
         ds.logger = logger
 
         return ds
@@ -151,6 +150,7 @@ class Dataset(K.utils.Sequence):
         self.shuffle_on_epoch_end = False
 
         self.logger = None
+        self.indices = None
         self._apply = lambda x: x
 
     def __len__(self):
@@ -160,7 +160,7 @@ class Dataset(K.utils.Sequence):
             int
 
         """
-        return math.ceil(len(self.x) / self.batch_size)
+        return math.floor(len(self.x) / self.batch_size)
 
     def __getitem__(self, idx):
         """Return a complete batch at the specified offset.
@@ -176,7 +176,7 @@ class Dataset(K.utils.Sequence):
 
         """
         i0 = idx * self.batch_size
-        i1 = min((idx + 1) * self.batch_size, len(self.indices) - 1)
+        i1 = min((idx + 1) * self.batch_size, len(self.x) - 1)
         i = self.indices[i0:i1]
 
         batch_x = [self.x[k] for k in i]
@@ -194,7 +194,7 @@ class Dataset(K.utils.Sequence):
             None
 
         """
-        self.indices = np.arange(len(self.x))
+        self._generate_indices()
         if self.shuffle is True:
             self.shuffle()
 
@@ -227,8 +227,14 @@ class Dataset(K.utils.Sequence):
         raise NotImplementedError()
 
     def shuffle(self):
+        """Shuffle the data indices using the internal numpy random state.
+
+        Returns:
+            None
+
+        """
         if self.indices is None:
-            self.indices = np.arange(len(self.x))
+            self._generate_indices()
 
         self.rs.shuffle(self.indices)
 
@@ -262,9 +268,11 @@ class Dataset(K.utils.Sequence):
 
         self.x = x_full[0:split_offset]
         self.y = y_full[0:split_offset]
+        self._generate_indices()
+        
         ret.x = x_full[split_offset + 1:len(x_full)]
         ret.y = y_full[split_offset + 1:len(y_full)]
-        ret.on_epoch_end()
+        ret._generate_indices()
 
         return ret
 
@@ -352,6 +360,18 @@ class Dataset(K.utils.Sequence):
             X.append(im)
 
         return self._apply(np.array(X))
+
+    def _generate_indices(self):
+        """Generate internal data indices.
+
+        These are used for synchronised shuffling of both input and ground
+        data.
+
+        Returns:
+            type: Description of returned object.
+
+        """
+        self.indices = np.arange(len(self.x))
 
 
 class DatasetException(Exception):
