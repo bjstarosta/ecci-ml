@@ -1,4 +1,4 @@
-"""FusionNet model constructor.
+"""FusionNet model constructor (multichannel).
 
 Author: GunhoChoi <https://github.com/GunhoChoi/FusionNet-Pytorch>
 Translated to TF 2.0 by Bohdan Starosta
@@ -189,8 +189,6 @@ def pack_data(X):
     X = (X.astype('float32') / 255.0)
     # pad image
     X = np.pad(X, ((0, 0), (64, 64), (64, 64), (0, 0)), 'reflect')
-    # add channel dimension
-    # X = np.expand_dims(X, axis=-1)
     return X
 
 
