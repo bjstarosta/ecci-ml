@@ -131,8 +131,8 @@ class Dataset(K.utils.Sequence):
         rs (numpy.random.RandomState): Random state to be used during
             splitting.
         batch_size (int): Size of data batch to load per training iteration.
-        shuffle (bool): If set to True, the data list will be shuffled every
-            epoch.
+        shuffle_on_epoch_end (bool): If set to True, the data list will be
+            shuffled every epoch.
 
     """
 
@@ -148,7 +148,7 @@ class Dataset(K.utils.Sequence):
 
         self.rs = np.random.default_rng(seed=None)
         self.batch_size = 32
-        self.shuffle = False
+        self.shuffle_on_epoch_end = False
 
         self.logger = None
         self._apply = lambda x: x
@@ -246,13 +246,13 @@ class Dataset(K.utils.Sequence):
             Dataset: New object instance of the current class.
 
         """
-        split = self.__class__()
+        ret = self.__class__()
         for attr in [
             'basepath', 'id', 'rs', 'desc', 'generated',
             'batch_size', 'shuffle',
             'logger'
         ]:
-            setattr(split, attr, getattr(self, attr))
+            setattr(ret, attr, getattr(self, attr))
 
         split_offset = int(split * len(self.x))
         x_full = self.x
@@ -260,10 +260,11 @@ class Dataset(K.utils.Sequence):
 
         self.x = x_full[0:split_offset]
         self.y = y_full[0:split_offset]
-        split.x = x_full[split_offset + 1:len(x_full)]
-        split.y = y_full[split_offset + 1:len(y_full)]
+        ret.x = x_full[split_offset + 1:len(x_full)]
+        ret.y = y_full[split_offset + 1:len(y_full)]
+        ret.on_epoch_end()
 
-        return split
+        return ret
 
     def apply(self, fn):
         """Set function to apply to each datapoint on load.

@@ -63,7 +63,7 @@ def train(
 
     # Set up dataset properties
     ds.batch_size = options['batch_size']
-    ds.shuffle = True
+    ds.shuffle_on_epoch_end = True
     ds.apply(model.pack_data)
 
     # Save some dataset statistics to debug
