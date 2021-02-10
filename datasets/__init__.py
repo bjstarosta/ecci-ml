@@ -175,7 +175,9 @@ class Dataset(K.utils.Sequence):
                 ground truth/labels.
 
         """
-        i = self.indices[idx * self.batch_size:(idx + 1) * self.batch_size]
+        i0 = idx * self.batch_size
+        i1 = min((idx + 1) * self.batch_size, len(self.indices) - 1)
+        i = self.indices[i0:i1]
 
         batch_x = [self.x[k] for k in i]
         batch_y = [self.y[k] for k in i]
