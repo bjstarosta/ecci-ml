@@ -7,6 +7,7 @@ University of Strathclyde Physics Department
 
 import logging
 import textwrap
+import resource
 
 import click
 
@@ -149,9 +150,13 @@ def run(ctx, **kwargs):
     try:
         dataset = datasets.load_dataset(kwargs['dataset'])
         if 'sanity-test' in flags:
-            dataset.load(1)
+            dataset.setup(kwargs['batch_size'])
         else:
-            dataset.load()
+            dataset.setup()
+
+        logger.info("Current process memory usage: {0:.3f} MB.".format(
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (10**3)
+        ))
 
         lib.tf.train(
             dataset, kwargs['model'], kwargs['seed'], flags, options)

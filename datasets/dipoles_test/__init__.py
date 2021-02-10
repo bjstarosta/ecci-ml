@@ -19,10 +19,19 @@ class Dipoles_test(datasets.Dataset):
         self.desc = 'Test dipole dataset for convolutional autoencoder'
         self.generated = '2020-08-09'
 
-    def load(self, limit=None):
+    def setup(self, limit=None):
         if limit is not None and limit < 1:
             raise datasets.DatasetException('Limit must be at least 1.')
-        # noisy dataset
-        self.X_train = self.load_images_from_dir('dipoles_test_noise', limit)
-        # clean dataset
-        self.Y_train = self.load_images_from_dir('dipoles_test', limit)
+
+        # raw experimental images
+        self.x = self._list_images('dipoles_test_noise', limit)
+        # ground truth
+        self.y = self._list_images('dipoles_test', limit)
+
+        self.on_epoch_end()
+
+    def load_data(self, batch_x, batch_y):
+        return (
+            self._load_images('dipoles_test_noise', batch_x),
+            self._load_images('dipoles_test', batch_y)
+        )

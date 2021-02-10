@@ -16,7 +16,7 @@ import weights
 
 logger = lib.logger.logger
 train_def_options = {
-    'batch_size': 1,
+    'batch_size': 32,
     'epochs': 10,
     'learning_rate': 0.001,
     'test_size': 0.2,
@@ -49,6 +49,7 @@ def train(
     """
     options = {**train_def_options, **options}
 
+    # Set random seeds
     if seed is None:
         seed = lib.utils.generate_seed()
         logger.info('Unique seed undefined. Setting to: {0}.'.format(seed))
@@ -57,26 +58,37 @@ def train(
     tf.random.set_seed(seed)
     tf.keras.backend.clear_session()
 
+    # Load model definition
     model = models.load_model(model_id)
 
+    # Set up dataset properties
+    ds.batch_size = options['batch_size']
+    ds.shuffle = True
     ds.apply(model.pack_data)
+
+    # Save some dataset statistics to debug
+    batch0 = ds[0]
+    logger.debug("Statistics of first data batch:")
+    logger.debug("X.shape={0}".format(batch0[0].shape))
     logger.debug("min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
-        np.min(ds.X_train), np.max(ds.X_train),
-        np.average(ds.X_train), np.var(ds.X_train)
+        np.min(batch0[0]), np.max(batch0[0]),
+        np.average(batch0[0]), np.var(batch0[0])
     ))
+    logger.debug("Y.shape={0}".format(batch0[1].shape))
     logger.debug("min(Y)={0}, max(Y)={1}, avg(Y)={2}, var(Y)={3}".format(
-        np.min(ds.Y_train), np.max(ds.Y_train),
-        np.average(ds.Y_train), np.var(ds.Y_train)
+        np.min(batch0[1]), np.max(batch0[1]),
+        np.average(batch0[1]), np.var(batch0[1])
     ))
 
+    # Apply dataset split or set up test mode
     if 'sanity-test' not in flags:
-        ds.split(options['test_size'], options['val_size'])
+        ds_test = ds.split(options['test_size'])
+        ds_val = ds_test.split(options['val_size'])
     else:
-        ds.X_test = ds.X_train
-        ds.Y_test = ds.Y_train
-        ds.X_val = ds.X_train
-        ds.Y_val = ds.Y_train
+        ds_test = ds
+        ds_val = ds
 
+    # Load a model to add to or set up a new one
     if ('overwrite-model' not in flags and 'sanity-test' not in flags
     and weights.weights_exist(model_id)):
         logger.info('Pre-trained weights found. Loading latest iteration.')
@@ -84,7 +96,7 @@ def train(
     else:
         logger.info(
             'Pre-trained weights not used. Building model from scratch.')
-        input_shape = ds.X_train[0].shape
+        input_shape = batch0[0][0].shape
         logger.info(
             'Using input shape: {0}.'.format(input_shape))
         model_nn = model.build(options['learning_rate'], input_shape)
@@ -110,19 +122,22 @@ def train(
 
     # Train the autoencoder model
     model_nn.fit(
-        x=ds.X_train,
-        y=ds.Y_train,
+        x=ds,
+        validation_data=ds_val,
         epochs=options['epochs'],
-        batch_size=options['batch_size'],
-        validation_data=(ds.X_val, ds.Y_val),
         callbacks=callbacks,
-        verbose=1
+        verbose=2
     )
 
+    # Evaluate
     logger.info('Evaluating.')
-    metrics = model_nn.evaluate(ds.X_test, ds.Y_test, verbose=1)
+    metrics = model_nn.evaluate(
+        x=ds_test,
+        verbose=0
+    )
     model.metrics(metrics, logger)
 
+    # Save model to weights directory
     weights_id = weights.available(model_id, str(seed))
     weights_path = weights.path(weights_id[0], weights_id[1])
     if 'sanity-test' not in flags:

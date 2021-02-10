@@ -13,7 +13,6 @@ import math
 
 import numpy as np
 import tensorflow.keras as K
-import sklearn.model_selection as ms
 import click
 
 import lib.logger
@@ -58,12 +57,15 @@ def load_dataset(ds_id, rs=None):
         logger.info('Loading dataset `{0}`.'.format(ds_id))
         mod = importlib.import_module('datasets.' + ds_id)
         cls = inspect.getmembers(mod, inspect.isclass)[-1][0]
+
         ds = getattr(mod, cls)()
         ds.id = ds_id
-        ds.path = path(ds_id)
+        ds.basepath = path(ds_id)
         ds.rs = rs
         ds.logger = logger
+
         return ds
+
     else:
         raise FileNotFoundError(
             errno.ENOENT, os.strerror(errno.ENOENT), path(ds_id))
@@ -114,285 +116,239 @@ def dataset_exists(ds_id):
     return os.path.exists(path(ds_id)) and os.path.exists(path(pi))
 
 
-class Dataset(object):
+class Dataset(K.utils.Sequence):
     """Abstract parent class for dataset subclasses.
 
     Attributes:
-        path (str): Absolute path to dataset folder. Set by load_dataset().
+        basepath (str): Absolute path to dataset folder. Set by load_dataset().
         id (str): ID string of dataset. Set by load_dataset().
-        rs (numpy.random.RandomState): Random state to be used during
-            splitting. Set by load_dataset().
         desc (str): Description of dataset. Should be set by the inheriting
             class.
         generated (str): Date of generation in a strptime() compatible format.
             Should be set by the inheriting class.
-        X_train (numpy.ndarray): Training dataset inputs.
-            Will be empty before self.load() is called.
-        X_test (numpy.ndarray): Testing dataset inputs.
-            Will be empty before self.split() is called.
-        X_val (numpy.ndarray): Validation dataset inputs.
-            Will be empty before self.split() is called.
-        Y_train (numpy.ndarray): Training dataset labels/outputs.
-            Will be empty before self.load() is called.
-        Y_test (numpy.ndarray): Testing dataset labels/outputs.
-            Will be empty before self.split() is called.
-        Y_val (numpy.ndarray): Validation dataset labels/outputs.
-            Will be empty before self.split() is called.
+        x (numpy.ndarray): Training sample data identifiers.
+        y (numpy.ndarray): Ground truth/label data identifiers.
+        rs (numpy.random.RandomState): Random state to be used during
+            splitting.
+        batch_size (int): Size of data batch to load per training iteration.
+        shuffle (bool): If set to True, the data list will be shuffled every
+            epoch.
 
     """
 
     def __init__(self):
-        self.path = None
+        self.basepath = None
         self.id = None
-        self.rs = None
 
         self.desc = ""
         self.generated = ""
 
-        self.X_train = np.array([])
-        self.X_test = np.array([])
-        self.X_val = np.array([])
-        self.Y_train = np.array([])
-        self.Y_test = np.array([])
-        self.Y_val = np.array([])
+        self.x = np.array([])
+        self.y = np.array([])
+
+        self.rs = np.random.default_rng(seed=None)
+        self.batch_size = 32
+        self.shuffle = False
 
         self.logger = None
+        self._apply = lambda x: x
 
-    def is_loaded(self):
-        """Check if dataset has been loaded into memory.
-
-        Returns:
-            bool: True if object contains dataset, False otherwise.
-
-        """
-        if self.X_train.shape[0] == 0 and self.Y_train.shape[0] == 0:
-            return False
-        else:
-            return True
-
-    def is_split(self):
-        """Check if dataset has been split into testing and validation sets.
+    def __len__(self):
+        """Number of batches in the sequence.
 
         Returns:
-            bool: True if object contains split datasets, False otherwise.
+            int
 
         """
-        if (self.X_test.shape[0] == 0 and self.Y_test.shape[0] == 0
-        and self.X_val.shape[0] == 0 and self.Y_val.shape[0] == 0):
-            return False
-        else:
-            return True
+        return math.ceil(len(self.x) / self.batch_size)
 
-    def get_train(self):
-        """Return the training dataset.
-
-        Returns:
-            numpy.ndarray, numpy.ndarray
-
-        """
-        return self.X_train, self.Y_train
-
-    def get_test(self):
-        """Return the testing dataset.
-
-        Returns:
-            numpy.ndarray, numpy.ndarray
-
-        """
-        return self.X_test, self.Y_test
-
-    def get_val(self):
-        """Return the validation dataset.
-
-        Returns:
-            numpy.ndarray, numpy.ndarray
-
-        """
-        return self.X_val, self.Y_val
-
-    def log_dataset_info(self):
-        """Append some short information about the dataset to the logger.
-
-        Returns:
-            None
-
-        """
-        raise NotImplementedError()
-
-    def load(self, limit=None):
-        """Load the whole dataset into memory.
+    def __getitem__(self, idx):
+        """Return a complete batch at the specified offset.
 
         Args:
-            limit (int): Limit to this amount of images.
+            idx (int): Offset index. Calculated by the batch size multiplied
+                by iteration number.
+
+        Returns:
+            tuple: Tuple of two numpy.ndarray, first element being the training
+                samples and the second being the corresponding
+                ground truth/labels.
+
+        """
+        i = self.indices[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        batch_x = [self.x[k] for k in i]
+        batch_y = [self.y[k] for k in i]
+
+        return self.load_data(batch_x, batch_y)
+
+    def on_epoch_end(self):
+        """Update indices after each epoch.
+
+        Method ran automatically by model.fit() at each epoch end.
+        Should also be called at the end of setup() by inheriting classes.
+
+        Returns:
+            None
+
+        """
+        self.indices = np.arange(len(self.x))
+        if self.shuffle is True:
+            self.shuffle()
+
+    def setup(self, limit=None):
+        """Set up data sources.
 
         Returns:
             None
 
         """
         raise NotImplementedError()
+
+    def load_data(self, batch_x, batch_y):
+        """Return raw data loaded from the dataset using identifier lists.
+
+        This method is supposed to be reimplemented according to dataset
+        file structure.
+
+        Args:
+            batch_x (list): Identifiers of training data files to be loaded.
+            batch_y (list): Identifiers of corresponding label data to be
+                loaded.
+
+        Returns:
+            tuple: Tuple of two numpy.ndarray, first element being the training
+                samples and the second being the corresponding
+                ground truth/labels.
+
+        """
+        raise NotImplementedError()
+
+    def shuffle(self):
+        if self.indices is None:
+            self.indices = np.arange(len(self.x))
+
+        self.rs.shuffle(self.indices)
+
+    def split(self, split=0.5):
+        """Return a new object instance with the specified data split.
+
+        The split variable defines the slicing point of the dataset data list.
+        The object calling the method will retain the left portion of the
+        data list, while the remainder will be transferred to the new object
+        returned by this method.
+
+        Args:
+            split (float): The slicing point of the data, translated as
+                split * len(data).
+
+        Returns:
+            Dataset: New object instance of the current class.
+
+        """
+        split = self.__class__()
+        for attr in [
+            'basepath', 'id', 'rs', 'desc', 'generated',
+            'batch_size', 'shuffle',
+            'logger'
+        ]:
+            setattr(split, attr, getattr(self, attr))
+
+        split_offset = int(split * len(self.x))
+        x_full = self.x
+        y_full = self.y
+
+        self.x = x_full[0:split_offset]
+        self.y = y_full[0:split_offset]
+        split.x = x_full[split_offset + 1:len(x_full)]
+        split.y = y_full[split_offset + 1:len(y_full)]
+
+        return split
 
     def apply(self, fn):
-        """Apply a function onto the entire dataset.
+        """Set function to apply to each datapoint on load.
 
         Args:
-            fn (function): Function to be applied onto the dataset.
+            fn (callable): Function to pass loaded data through.
 
         Returns:
             None
 
         """
-        # fn_ = np.vectorize(fn)
-        if len(self.X_train) > 0:
-            self.X_train = fn(self.X_train)
-        if len(self.X_test) > 0:
-            self.X_test = fn(self.X_test)
-        if len(self.X_val) > 0:
-            self.X_val = fn(self.X_val)
-        if len(self.Y_train) > 0:
-            self.Y_train = fn(self.Y_train)
-        if len(self.Y_test) > 0:
-            self.Y_test = fn(self.Y_test)
-        if len(self.Y_val) > 0:
-            self.Y_val = fn(self.Y_val)
+        if not callable(fn):
+            raise DatasetException('Expected callable var in apply().')
 
-    def split(self, test_split=0.2, val_split=0.5):
-        """Split the loaded dataset into training, test and validation sets.
+        self._apply = fn
 
-        If self.rs (the random state) is set, it will be used for reproducible
-        splitting.
+    def _list_images(self, dir, limit=None):
+        """Prepare an image dataset file listing in memory and return it.
+
+        For use from within the setup() dataset definition method.
 
         Args:
-            test_split (float): Portion of the training dataset to set as
-                testing.
-            val_split (float): Portion of the testing dataset to set as
-                validation.
+            dir (str): Directory name to read from. Specified relatively to
+                the dataset directory.
+            limit (int, optional): If set to a positive integer, will load only
+                the first x amount of files in the directory.
 
         Returns:
-            bool: True if split has occured, False if dataset was already
-                split.
-
-        """
-        if self.is_split():
-            return False
-
-        X_len = len(self.X_train)
-        Y_len = len(self.Y_train)
-
-        final_val = test_split * val_split
-        final_test = test_split - final_val
-        final_train = 1 - final_test - final_val
-        logger.info("Splitting dataset: "
-            "train={0:.3g}, test={1:.3g}, val={2:.3g}.".format(
-                final_train, final_test, final_val
-            )
-        )
-
-        self.X_train, self.X_test, self.Y_train, self.Y_test = \
-            ms.train_test_split(self.X_train, self.Y_train,
-            test_size=test_split, random_state=self.rs)
-        self.X_test, self.X_val, self.Y_test, self.Y_val = \
-            ms.train_test_split(self.X_test, self.Y_test,
-            test_size=val_split, random_state=self.rs)
-
-        logger.info("Final X array size: "
-            "train={0:d}, test={1:d}, val={2:d} (total={3:d}).".format(
-                len(self.X_train), len(self.X_test), len(self.X_val), X_len
-            )
-        )
-        logger.info("Final Y array size: "
-            "train={0:d}, test={1:d}, val={2:d} (total={3:d}).".format(
-                len(self.Y_train), len(self.Y_test), len(self.Y_val), Y_len
-            )
-        )
-
-        return True
-
-    def load_images_from_dir(self, dir, limit=None):
-        """Load an image dataset into memory and return it.
-
-        Args:
-            dir (str):
-                Folder name to load from. Must be present inside the dataset
+            numpy.ndarray: List of image filenames present within the
                 directory.
-            limit (int, optional):
-                If set to a positive integer, will load only the first x amount
-                of files in the directory.
 
-        Returns:
-            numpy.ndarray: Unsplit data for the model.
         """
         X = []
-        path = os.path.join(self.path, dir)
+        path = os.path.join(self.basepath, dir)
 
         if not os.path.isdir(path):
             raise IOError('"{0}": Not a directory.'.format(path))
 
-        logger.info("Loading images from '{0}'.".format(
+        logger.info("Reading images in '{0}'.".format(
             click.format_filename(path)
         ))
 
         images = os.listdir(path)
 
-        images_valid = []
         for im in images:
             im_path = os.path.join(path, im)
             if not utils.valid_image(im_path):
                 continue
-            images_valid.append(im_path)
-        images_valid.sort()
+            X.append(im_path)
+        X.sort()
 
         if type(limit) is int:
-            images_valid = images_valid[0:limit]
+            X = X[0:limit]
 
-        with click.progressbar(
-            label='Loading images...',
-            length=len(images_valid),
-            show_pos=True
-        ) as pbar:
-            for im in images_valid:
-                im = utils.load_image(im)
-                X.append(im)
-                pbar.update(1)
-
-        logger.info("{0:d} images loaded from '{1}'.".format(
+        logger.info("{0:d} images found in '{1}'.".format(
             len(X),
             click.format_filename(path)
         ))
 
         return np.array(X)
 
+    def _load_images(self, dir, indices):
+        """Load a list of images from the specified directory.
 
-class DatasetSequence(K.utils.Sequence):
-    """Sequence generator class implementation.
+        For use from within the load_data() batch generation method.
 
-    Args:
-        x (numpy.ndarray): List of image filenames.
-        y (numpy.ndarray): List of image filenames.
-        batch_size (int): Batch size.
+        Args:
+            dir (str): Directory name to load from. Specified relatively to
+                the dataset directory.
+            indices (list): List of image filenames.
 
-    Attributes:
-        x
-        y
-        batch_size
+        Returns:
+            numpy.ndarray: Numpy array of images. Depending on the images
+                loaded, will either be 3 or 4-dim with the top dimension
+                grouping the images together.
 
-    """
+        """
+        X = []
+        path = os.path.join(self.basepath, dir)
 
-    def __init__(self, x, y, batch_size):
-        self.x = x
-        self.y = y
-        self.batch_size = batch_size
+        for im in indices:
+            im = utils.load_image(os.path.join(path, im))
+            X.append(im)
 
-    def __len__(self):
-        return math.ceil(len(self.x) / self.batch_size)
-
-    def __getitem__(self, idx):
-        batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
-        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
-
-        return (
-            np.array([utils.load_image(im) for im in batch_x]),
-            np.array([utils.load_image(im) for im in batch_y])
-        )
+        return self._apply(np.array(X))
 
 
 class DatasetException(Exception):
