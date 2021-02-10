@@ -176,7 +176,7 @@ class Dataset(K.utils.Sequence):
 
         """
         i0 = idx * self.batch_size
-        i1 = min((idx + 1) * self.batch_size, len(self.x) - 1)
+        i1 = min((idx + 1) * self.batch_size, len(self.x))
         i = self.indices[i0:i1]
 
         batch_x = [self.x[k] for k in i]
@@ -257,8 +257,8 @@ class Dataset(K.utils.Sequence):
         ret = self.__class__()
         for attr in [
             'basepath', 'id', 'rs', 'desc', 'generated',
-            'batch_size', 'shuffle',
-            'logger'
+            'batch_size', 'shuffle_on_epoch_end',
+            'logger', '_apply'
         ]:
             setattr(ret, attr, getattr(self, attr))
 
@@ -269,7 +269,7 @@ class Dataset(K.utils.Sequence):
         self.x = x_full[0:split_offset]
         self.y = y_full[0:split_offset]
         self._generate_indices()
-        
+
         ret.x = x_full[split_offset + 1:len(x_full)]
         ret.y = y_full[split_offset + 1:len(y_full)]
         ret._generate_indices()
