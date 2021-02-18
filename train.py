@@ -167,7 +167,7 @@ def run(ctx, **kwargs):
         for ds in dsloaded:
             dataset.add(ds)
     else:
-        dataset = dslist[0]
+        dataset = dsloaded[0]
 
     options = {
         'batch_size': kwargs['batch_size'],
