@@ -120,16 +120,16 @@ def main(ctx, **kwargs):
 )
 @click.pass_context
 def run(ctx, **kwargs):
-    """Train the selected model using the selected dataset."""
+    """Train the selected model using the selected dataset.
+
+    You can pass multiple datasets into the DATASET argument by separating
+    the names using a comma (,). E.g.: dataset1,dataset2. This will cause
+    multiple datasets to be loaded in as a collection. You must ensure that
+    the dataset data structure is cross-compatible, otherwise the training
+    will fail."""
     if not models.model_exists(kwargs['model']):
         raise click.UsageError(
             "Model '{0}' does not exist.".format(kwargs['model']),
-            ctx=ctx
-        )
-
-    if not datasets.dataset_exists(kwargs['dataset']):
-        raise click.UsageError(
-            "Dataset '{0}' does not exist.".format(kwargs['dataset']),
             ctx=ctx
         )
 
@@ -138,6 +138,36 @@ def run(ctx, **kwargs):
         flags.append('overwrite-model')
     if kwargs['test'] is True:
         flags.append('sanity-test')
+
+    dslist = kwargs['dataset'].split(',')
+    dsloaded = []
+    for ds in dslist:
+        if not datasets.dataset_exists(ds):
+            raise click.UsageError(
+                "Dataset '{0}' does not exist.".format(ds),
+                ctx=ctx
+            )
+
+        try:
+            ds = datasets.load_dataset(ds)
+            ds.batch_size = kwargs['batch_size']
+            if 'sanity-test' in flags:
+                ds.setup(kwargs['batch_size'])
+            else:
+                ds.setup()
+
+            dsloaded.append(ds)
+
+        except Exception:
+            logger.error("Unrecoverable error.", exc_info=True)
+            exit(1)
+
+    if len(dslist) > 1:
+        dataset = datasets.DatasetCollection()
+        for ds in dsloaded:
+            dataset.add(ds)
+    else:
+        dataset = dslist[0]
 
     options = {
         'batch_size': kwargs['batch_size'],
@@ -148,12 +178,6 @@ def run(ctx, **kwargs):
     }
 
     try:
-        dataset = datasets.load_dataset(kwargs['dataset'])
-        if 'sanity-test' in flags:
-            dataset.setup(kwargs['batch_size'])
-        else:
-            dataset.setup()
-
         logger.info("Current process memory usage: {0:.3f} MB.".format(
             resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (10**3)
         ))

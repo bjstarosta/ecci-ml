@@ -9,7 +9,6 @@ import os
 import errno
 import importlib
 import inspect
-import math
 
 import numpy as np
 import tensorflow.keras as K
@@ -118,6 +117,9 @@ def dataset_exists(ds_id):
 class Dataset(K.utils.Sequence):
     """Abstract parent class for dataset subclasses.
 
+    All subclasses of this class can be passed to tf.keras.model.fit() as a
+    parameter directly.
+
     Attributes:
         basepath (str): Absolute path to dataset folder. Set by load_dataset().
         id (str): ID string of dataset. Set by load_dataset().
@@ -160,7 +162,7 @@ class Dataset(K.utils.Sequence):
             int
 
         """
-        return math.floor(len(self.x) / self.batch_size)
+        return int(np.floor(len(self.x) / self.batch_size))
 
     def __getitem__(self, idx):
         """Return a complete batch at the specified offset.
@@ -246,6 +248,10 @@ class Dataset(K.utils.Sequence):
         data list, while the remainder will be transferred to the new object
         returned by this method.
 
+        The split happens according to the currently set batch size, rather
+        than the absolute size of the dataset. As such, half split datasets may
+        not be exactly equal in dataset length.
+
         Args:
             split (float): The slicing point of the data, translated as
                 split * len(data).
@@ -262,16 +268,21 @@ class Dataset(K.utils.Sequence):
         ]:
             setattr(ret, attr, getattr(self, attr))
 
-        split_offset = int(split * len(self.x))
         x_full = self.x
         y_full = self.y
 
-        self.x = x_full[0:split_offset]
-        self.y = y_full[0:split_offset]
+        split_offset = int(np.floor(split * len(self.x)))
+        modulo = split_offset % self.batch_size
+        if modulo > 0:
+            modulo = self.batch_size - modulo
+        split_offset = split_offset + modulo
+
+        self.x = x_full[:split_offset]
+        self.y = y_full[:split_offset]
         self._generate_indices()
 
-        ret.x = x_full[split_offset + 1:len(x_full)]
-        ret.y = y_full[split_offset + 1:len(y_full)]
+        ret.x = x_full[split_offset:]
+        ret.y = y_full[split_offset:]
         ret._generate_indices()
 
         return ret
@@ -336,7 +347,7 @@ class Dataset(K.utils.Sequence):
 
         return np.array(X)
 
-    def _load_images(self, dir, indices):
+    def _load_images(self, dir, indices, type=None, mode=None):
         """Load a list of images from the specified directory.
 
         For use from within the load_data() batch generation method.
@@ -345,6 +356,12 @@ class Dataset(K.utils.Sequence):
             dir (str): Directory name to load from. Specified relatively to
                 the dataset directory.
             indices (list): List of image filenames.
+            type (str): Value type to save the image with. See
+                lib.utils.image_convtype() for documentation of accepted
+                values.
+            mode (str): Channel mode to save the image with. See
+                lib.utils.image_convmode() for documentation of accepted
+                values.
 
         Returns:
             numpy.ndarray: Numpy array of images. Depending on the images
@@ -356,7 +373,7 @@ class Dataset(K.utils.Sequence):
         path = os.path.join(self.basepath, dir)
 
         for im in indices:
-            im = utils.load_image(os.path.join(path, im))
+            im = utils.load_image(os.path.join(path, im), type, mode)
             X.append(im)
 
         return self._apply(np.array(X))
@@ -368,13 +385,120 @@ class Dataset(K.utils.Sequence):
         data.
 
         Returns:
-            type: Description of returned object.
+            None
 
         """
         self.indices = np.arange(len(self.x))
 
 
+class DatasetCollection(Dataset):
+    """Class for grouping datasets together to functionally act as one dataset.
+
+    Just like a Dataset object, this can be passed to tf.keras.model.fit() as a
+    parameter.
+
+    Attributes:
+        datasets (list): List of datasets included in the collection.
+            Use the add() method to add datasets to it to ensure correct
+            indices.
+        batch_size (int): Size of data batch to load per training iteration.
+            Propagated to contained datasets.
+        shuffle_on_epoch_end (bool): If set to True, the data list will be
+            shuffled every epoch. Propagated to contained datasets.
+
+    """
+
+    def __init__(self):
+        self.datasets = []
+        self.indices = []
+
+        self._batch_size = 32
+        self._shuffle_on_epoch_end = False
+        self._broadcast_attrs = ['batch_size', 'shuffle_on_epoch_end']
+
+    def __len__(self):
+        """Number of batches in the collection.
+
+        Returns:
+            int
+
+        """
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        ds, i = self.indices[idx]
+        return ds[i]
+
+    def on_epoch_end(self):
+        """Update indices after each epoch.
+
+        Method ran automatically by model.fit() at each epoch end.
+
+        Returns:
+            None
+
+        """
+        for ds in self.datasets:
+            if ds.shuffle is True:
+                ds.shuffle()
+
+    def add(self, ds):
+        if len(ds) == 0:
+            raise RuntimeError('Passed dataset len = 0. Did you call setup()?')
+        for attr in self._broadcast_attrs:
+            setattr(ds, attr, getattr(self, attr))
+        self.datasets.append(ds)
+        self.indices = self.indices + [(ds, i) for i in range(len(ds))]
+
+    def _generate_indices(self):
+        self.indices = []
+        for ds in self.datasets:
+            self.indices = self.indices + [(ds, i) for i in range(len(ds))]
+
+    @property
+    def batch_size(self):
+        return self._batch_size
+
+    @batch_size.setter
+    def batch_size(self, value):
+        self._batch_size = value
+        for ds in self.datasets:
+            ds.batch_size = value
+        self._generate_indices()
+
+    @property
+    def shuffle_on_epoch_end(self):
+        return self._shuffle_on_epoch_end
+
+    @shuffle_on_epoch_end.setter
+    def shuffle_on_epoch_end(self, value):
+        self._shuffle_on_epoch_end = value
+        for ds in self.datasets:
+            ds.shuffle_on_epoch_end = value
+
+    def setup(self, limit=None):
+        for ds in self.datasets:
+            ds.setup(limit)
+
+    def shuffle(self):
+        for ds in self.datasets:
+            ds.shuffle()
+
+    def split(self, split=0.5):
+        ret = self.__class__()
+        for attr in self._broadcast_attrs:
+            setattr(ret, attr, getattr(self, attr))
+        for ds in self.datasets:
+            ret.add(ds.split(split))
+        self._generate_indices()
+        return ret
+
+    def apply(self, fn):
+        for ds in self.datasets:
+            ds.apply(fn)
+
+
 class DatasetException(Exception):
-    """Base class for other exceptions."""
+    """Base class for Dataset specific exceptions."""
 
     pass

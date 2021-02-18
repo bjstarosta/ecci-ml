@@ -67,7 +67,7 @@ def augment(im):
     return ret
 
 
-def _load_images(path):
+def _load_images(path, type=None, mode=None):
     """Load an image or a directory of images into memory and return it.
 
     This is a generator function.
@@ -83,7 +83,7 @@ def _load_images(path):
     if not os.path.isdir(path):
         if not utils.valid_image(path):
             raise IOError('"{0}": Not a valid image.'.format(path))
-        yield path, utils.load_image(path)
+        yield path, utils.load_image(path, type, mode)
         return
 
     images = os.listdir(path)
@@ -97,7 +97,7 @@ def _load_images(path):
     images_valid.sort()
 
     for im in images_valid:
-        yield im, utils.load_image(im)
+        yield im, utils.load_image(im, type, mode)
 
 
 @click.group()
@@ -188,12 +188,10 @@ def split(ctx, **kwargs):
             kwargs['width'], kwargs['height'], kwargs['stride'])
         ctx.obj['logger'].debug("{0} chunks returned.".format(len(out)))
 
-        m = 0
-        for o in out:
+        for i, o in enumerate(out):
             path = os.path.join(kwargs['output'],
-                ext[0] + '_' + str(m) + ext[1])
+                ext[0] + '_' + str(i) + ext[1])
             utils.save_image(path, o)
-            m += 1
             n2 += 1
 
         n += 1
