@@ -168,8 +168,10 @@ def image_convmode(img, mode):
     """
     rgbweights = [0.2989, 0.5870, 0.1140]
     if mode == 'grayscale' or mode == 'gs':
-        if len(img.shape) == 3:
+        if len(img.shape) == 3 and img.shape[2] >= 3:
             img = np.dot(img[..., :3], rgbweights)
+        if len(img.shape) == 3 and img.shape[2] == 1:
+            img = np.squeeze(img, axis=2)
         if len(img.shape) != 2:
             raise RuntimeError('Could not convert image to grayscale')
     elif mode == 'grayscale1c' or mode == 'gs1c':
