@@ -166,30 +166,45 @@ def image_convmode(img, mode):
         numpy.ndarray: Mode converted image data.
 
     """
-    rgbweights = [0.2989, 0.5870, 0.1140]
+    rgb2gs = [0.2989, 0.5870, 0.1140]
+
     if mode == 'grayscale' or mode == 'gs':
         if len(img.shape) == 3 and img.shape[2] >= 3:
-            img = np.dot(img[..., :3], rgbweights)
+            img = np.dot(img[..., :3], rgb2gs)
         if len(img.shape) == 3 and img.shape[2] == 1:
             img = np.squeeze(img, axis=2)
         if len(img.shape) != 2:
             raise RuntimeError('Could not convert image to grayscale')
+
     elif mode == 'grayscale1c' or mode == 'gs1c':
-        if len(img.shape) == 3:
-            img = np.dot(img[..., :3], rgbweights)
+        if len(img.shape) == 3 and img.shape[2] >= 3:
+            img = np.dot(img[..., :3], rgb2gs)
         if len(img.shape) == 2:
             img = np.expand_dims(img, axis=-1)
+
     elif mode == 'rgb':
         if len(img.shape) == 3 and img.shape[2] == 4:
             img = img[..., :3]
+        if len(img.shape) == 3 and img.shape[2] == 1:
+            img = np.squeeze(img, axis=2)
         if len(img.shape) == 2:
             img = np.stack((img, img, img), axis=-1)
+
     elif mode == 'rgba':
+        if np.issubdtype(img.dtype, np.integer):
+            mul = 255
+        elif np.issubdtype(img.dtype, np.floating):
+            mul = 1.
+
         if len(img.shape) == 3 and img.shape[2] == 3:
             img = np.stack((img[..., 0], img[..., 1], img[..., 2],
-                np.ones(img.shape) * 255), axis=-1)
+                np.ones(img.shape) * mul), axis=-1)
+        if len(img.shape) == 3 and img.shape[2] == 1:
+            img = np.squeeze(img, axis=2)
         if len(img.shape) == 2:
-            img = np.stack((img, img, img, np.ones(img.shape) * 255), axis=-1)
+            img = np.stack((img, img, img, np.ones(img.shape) * mul), axis=-1)
+
     elif mode is not None:
         raise RuntimeError('Passed mode is unsupported')
+
     return img
