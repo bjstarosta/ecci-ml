@@ -61,6 +61,8 @@ def load_dataset(ds_id, rs=None):
         ds.id = ds_id
         ds.basepath = path(ds_id)
         ds.logger = logger
+        if rs is not None:
+            ds.rs = rs
 
         return ds
 
@@ -412,6 +414,7 @@ class DatasetCollection(Dataset):
         self.datasets = []
         self.indices = []
 
+        self._rs = None
         self._batch_size = 32
         self._shuffle_on_epoch_end = False
         self._broadcast_attrs = ['batch_size', 'shuffle_on_epoch_end']
@@ -449,11 +452,27 @@ class DatasetCollection(Dataset):
             setattr(ds, attr, getattr(self, attr))
         self.datasets.append(ds)
         self.indices = self.indices + [(ds, i) for i in range(len(ds))]
+        self._propagate_rs()
 
     def _generate_indices(self):
         self.indices = []
         for ds in self.datasets:
             self.indices = self.indices + [(ds, i) for i in range(len(ds))]
+
+    def _propagate_rs(self):
+        if self._rs is None:
+            self._rs = self.datasets[0].rs
+        for ds in self.datasets:
+            ds.rs = self._rs
+
+    @property
+    def rs(self):
+        return self._rs
+
+    @rs.setter
+    def rs(self, value):
+        self._rs = value
+        self._propagate_rs()
 
     @property
     def batch_size(self):

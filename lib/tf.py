@@ -62,6 +62,7 @@ def train(
     model = models.load_model(model_id)
 
     # Set up dataset properties
+    ds.rs = np.random.default_rng(seed=seed)
     ds.batch_size = options['batch_size']
     ds.shuffle_on_epoch_end = True
     ds.apply(model.pack_data)
