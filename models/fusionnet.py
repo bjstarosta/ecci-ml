@@ -162,7 +162,7 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     # output
     out = L.Conv2D(input_shape[2],
         kernel_size=3, strides=1, padding='same')(up_4)
-    out_2 = L.Activation('tanh')(out)
+    out_2 = L.Activation('relu')(out)
 
     model = K.Model(inputs=inputs, outputs=out_2)
     model.compile(
