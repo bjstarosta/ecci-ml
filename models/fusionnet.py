@@ -12,7 +12,7 @@ import numpy as np
 
 
 es_callback = tf.keras.callbacks.EarlyStopping(
-    monitor='val_loss',
+    monitor='loss',
     min_delta=1e-2,
     patience=2,
     verbose=1
