@@ -93,7 +93,9 @@ def train(
     ))
 
     # Load a model to add to or set up a new one
-    if ('overwrite-model' not in flags and 'sanity-test' not in flags
+    if ('overwrite-model' not in flags
+    and 'sanity-test' not in flags
+    and 'no-save' not in flags
     and weights.weights_exist(model_id)):
         logger.info('Pre-trained weights found. Loading latest iteration.')
         model_nn = weights.load_weights(model_id)
