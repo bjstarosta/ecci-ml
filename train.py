@@ -318,6 +318,10 @@ def kfold(ctx, **kwargs):
     final_metrics = np.average(metrics, axis=0)
     model.metrics(final_metrics, logger)
 
+    final_metrics_std = np.std(metrics, axis=0)
+    for i, std in final_metrics_std:
+        logger.info('STD ({0}): {1:.6f}'.format(i, std))
+
 
 @main.command()
 @click.pass_context
