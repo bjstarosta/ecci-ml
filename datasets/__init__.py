@@ -275,6 +275,21 @@ class Dataset(K.utils.Sequence):
         x_full = self.x
         y_full = self.y
 
+        if split <= 0:
+            ret.x = []
+            ret.y = []
+            ret._generate_indices()
+            return ret
+
+        if split >= 1:
+            self.x = []
+            self.y = []
+            self._generate_indices()
+            ret.x = x_full
+            ret.y = y_full
+            ret._generate_indices()
+            return ret
+
         split_offset = int(np.floor(split * len(self.x)))
         modulo = split_offset % self.batch_size
         if modulo > 0:
@@ -284,11 +299,9 @@ class Dataset(K.utils.Sequence):
         self.x = x_full[:split_offset]
         self.y = y_full[:split_offset]
         self._generate_indices()
-
         ret.x = x_full[split_offset:]
         ret.y = y_full[split_offset:]
         ret._generate_indices()
-
         return ret
 
     def slice(self, indices):
