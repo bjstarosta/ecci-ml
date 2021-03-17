@@ -41,12 +41,12 @@ def path(ds_id, basename=False):
         return os.path.join(PATH_DATASETS, bn)
 
 
-def load_dataset(ds_id, rs=None):
+def load_dataset(ds_id, seed=None):
     """Load a dataset object.
 
     Args:
         ds_id (str): Dataset identifier.
-        rs (numpy.random.RandomState): Optional random state definition.
+        seed (int): Random number generator seed.
 
     Returns:
         datasets.Dataset: Dataset object.
@@ -60,10 +60,8 @@ def load_dataset(ds_id, rs=None):
         ds = getattr(mod, cls)()
         ds.id = ds_id
         ds.basepath = path(ds_id)
+        ds.rs = np.random.default_rng(seed=seed)
         ds.logger = logger
-        if rs is not None:
-            ds.rs = rs
-
         return ds
 
     else:
@@ -122,6 +120,12 @@ class Dataset(K.utils.Sequence):
     All subclasses of this class can be passed to tf.keras.model.fit() as a
     parameter directly.
 
+    Dataset indexing is based on the specified batch size. Items can be called
+    to using array notation, but what will be returned will always be a data
+    batch, not a single item. This means that the indices change when the
+    batch_size attribute is changed. The size of the dataset is always
+    the number of data points / specified batch size.
+
     Attributes:
         basepath (str): Absolute path to dataset folder. Set by load_dataset().
         id (str): ID string of dataset. Set by load_dataset().
@@ -149,13 +153,19 @@ class Dataset(K.utils.Sequence):
         self.x = np.array([])
         self.y = np.array([])
 
-        self.rs = np.random.default_rng(seed=None)
+        self.rs = None
         self.batch_size = 32
         self.shuffle_on_epoch_end = False
 
         self.logger = None
         self.indices = None
+
         self._apply = lambda x: x
+        self._broadcast_attrs = [
+            'basepath', 'id', 'rs', 'desc', 'generated',
+            'batch_size', 'shuffle_on_epoch_end',
+            'logger', '_apply'
+        ]
 
     def __len__(self):
         """Number of batches in the sequence.
@@ -179,13 +189,9 @@ class Dataset(K.utils.Sequence):
                 ground truth/labels.
 
         """
-        i0 = idx * self.batch_size
-        i1 = min((idx + 1) * self.batch_size, len(self.x))
-        i = self.indices[i0:i1]
-
+        i = self._get_indices(idx)
         batch_x = [self.x[k] for k in i]
         batch_y = [self.y[k] for k in i]
-
         return self.load_data(batch_x, batch_y)
 
     def on_epoch_end(self):
@@ -243,7 +249,7 @@ class Dataset(K.utils.Sequence):
         self.rs.shuffle(self.indices)
 
     def split(self, split=0.5):
-        """Return a new object instance with the specified data split.
+        """Return a new Dataset instance with the specified data split.
 
         The split variable defines the slicing point of the dataset data list.
         The object calling the method will retain the left portion of the
@@ -263,11 +269,7 @@ class Dataset(K.utils.Sequence):
 
         """
         ret = self.__class__()
-        for attr in [
-            'basepath', 'id', 'rs', 'desc', 'generated',
-            'batch_size', 'shuffle_on_epoch_end',
-            'logger', '_apply'
-        ]:
+        for attr in self._broadcast_attrs:
             setattr(ret, attr, getattr(self, attr))
 
         x_full = self.x
@@ -285,6 +287,33 @@ class Dataset(K.utils.Sequence):
 
         ret.x = x_full[split_offset:]
         ret.y = y_full[split_offset:]
+        ret._generate_indices()
+
+        return ret
+
+    def slice(self, indices):
+        """Return a new Dataset instance containing only specified indices.
+
+        The object from which this method is called will remain unchanged.
+
+        Args:
+            indices (list): A list of indices to be preserved in the new
+                Dataset instance.
+
+        Returns:
+            Dataset: New object instance of the current class.
+
+        """
+        ret = self.__class__()
+        for attr in self._broadcast_attrs:
+            setattr(ret, attr, getattr(self, attr))
+
+        i = []
+        for idx in indices:
+            i.extend(self._get_indices(idx))
+
+        ret.x = [self.x[k] for k in i]
+        ret.y = [self.y[k] for k in i]
         ret._generate_indices()
 
         return ret
@@ -392,6 +421,20 @@ class Dataset(K.utils.Sequence):
         """
         self.indices = np.arange(len(self.x))
 
+    def _get_indices(self, idx):
+        """Convert batch index to list of datapoint indices.
+
+        Args:
+            idx (int): Batch index.
+
+        Returns:
+            list: List of indices corresponding to values in self.x and self.y.
+
+        """
+        i0 = idx * self.batch_size
+        i1 = min((idx + 1) * self.batch_size, len(self.x))
+        return self.indices[i0:i1]
+
 
 class DatasetCollection(Dataset):
     """Class for grouping datasets together to functionally act as one dataset.
@@ -410,14 +453,14 @@ class DatasetCollection(Dataset):
 
     """
 
-    def __init__(self):
+    def __init__(self, seed=None):
         self.datasets = []
         self.indices = []
 
-        self._rs = None
+        self._rs = np.random.default_rng(seed=seed)
         self._batch_size = 32
         self._shuffle_on_epoch_end = False
-        self._broadcast_attrs = ['batch_size', 'shuffle_on_epoch_end']
+        self._broadcast_attrs = ['rs', 'batch_size', 'shuffle_on_epoch_end']
 
     def __len__(self):
         """Number of batches in the collection.
@@ -451,13 +494,13 @@ class DatasetCollection(Dataset):
         for attr in self._broadcast_attrs:
             setattr(ds, attr, getattr(self, attr))
         self.datasets.append(ds)
-        self.indices = self.indices + [(ds, i) for i in range(len(ds))]
+        self.indices.extend([(ds, i) for i in range(len(ds))])
         self._propagate_rs()
 
     def _generate_indices(self):
         self.indices = []
         for ds in self.datasets:
-            self.indices = self.indices + [(ds, i) for i in range(len(ds))]
+            self.indices.extend([(ds, i) for i in range(len(ds))])
 
     def _propagate_rs(self):
         if self._rs is None:
@@ -512,6 +555,23 @@ class DatasetCollection(Dataset):
         self._generate_indices()
         return ret
 
+    def slice(self, indices):
+        ret = self.__class__()
+        for attr in self._broadcast_attrs:
+            setattr(ret, attr, getattr(self, attr))
+
+        sorted = {}
+        for idx in indices:
+            ds, i = self.indices[idx]
+            if ds not in sorted:
+                sorted[ds] = []
+            sorted[ds].append(i)
+
+        for ds, i in sorted.items():
+            ret.add(ds.slice(i))
+
+        return ret
+
     def apply(self, fn):
         for ds in self.datasets:
             ds.apply(fn)
@@ -519,5 +579,4 @@ class DatasetCollection(Dataset):
 
 class DatasetException(Exception):
     """Base class for Dataset specific exceptions."""
-
     pass

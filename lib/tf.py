@@ -18,36 +18,11 @@ logger = lib.logger.logger
 train_def_options = {
     'batch_size': 32,
     'epochs': 10,
-    'learning_rate': 0.001,
-    'test_size': 0.2,
-    'val_size': 0.5
+    'learning_rate': 0.001
 }
 
 
-def train(
-    ds, model_id, seed=None, flags=[], options={}
-):
-    """Train and save neural network model.
-
-    Args:
-        ds (datasets.Dataset): Dataset object with loaded data.
-        model_id (str): Model identifier.
-        seed (int): Random number generator seed.
-        flags (list): A flag is set if it is present in the passed list.
-        List of possible flags:
-            overwrite-model: The function does not check for previously
-                trained models to add training data to, and instead starts
-                a new model and overwrites the one existing in the default
-                location.
-            sanity-test: Flag for testing mode (model not saved).
-        options (dict): Additional training options. Is intersected with the
-            _train_def_options dictionary.
-
-    Returns:
-        tensorflow.keras.Model: Trained model.
-
-    """
-    options = {**train_def_options, **options}
+def set_seed(seed=None):
 
     # Set random seeds
     if seed is None:
@@ -58,8 +33,44 @@ def train(
     tf.random.set_seed(seed)
     tf.keras.backend.clear_session()
 
+    return seed
+
+
+def train(
+    model_id, ds, ds_test, ds_val=None, seed=None, flags=[], options={}
+):
+    """Train and save neural network model.
+
+    Args:
+        model_id (str): Model identifier.
+        ds (datasets.Dataset): Dataset object with loaded data.
+        ds_test (datasets.Dataset): Dataset object to be used for testing.
+        ds_val (datasets.Dataset): Dataset object to be used for validation.
+            If None is passed, validation is not performed.
+        seed (int): Random number generator seed.
+        flags (list): A flag is set if it is present in the passed list.
+        List of possible flags:
+            overwrite-model: The function does not check for previously
+                trained models to add training data to, and instead starts
+                a new model and overwrites the one existing in the default
+                location.
+            sanity-test: Flag for testing mode (model not saved).
+            no-save: Do not save this model.
+            no-metrics: Do not evaluate this model.
+        options (dict): Additional training options. Is intersected with the
+            _train_def_options dictionary.
+
+    Returns:
+        tensorflow.keras.Model: Trained model.
+
+    """
+    options = {**train_def_options, **options}
+
     # Load model definition
     model = models.load_model(model_id)
+
+    if seed is None:
+        seed = set_seed()
 
     # Set up dataset properties
     ds.rs = np.random.default_rng(seed=seed)
@@ -80,14 +91,6 @@ def train(
         np.min(batch0[1]), np.max(batch0[1]),
         np.average(batch0[1]), np.var(batch0[1])
     ))
-
-    # Apply dataset split or set up test mode
-    if 'sanity-test' not in flags:
-        ds_test = ds.split(options['test_size'])
-        ds_val = ds_test.split(options['val_size'])
-    else:
-        ds_test = ds
-        ds_val = ds
 
     # Load a model to add to or set up a new one
     if ('overwrite-model' not in flags and 'sanity-test' not in flags
@@ -131,17 +134,18 @@ def train(
     )
 
     # Evaluate
-    logger.info('Evaluating.')
-    metrics = model_nn.evaluate(
-        x=ds_test,
-        verbose=0
-    )
-    model.metrics(metrics, logger)
+    if 'no-metrics' not in flags:
+        logger.info('Evaluating.')
+        metrics = model_nn.evaluate(
+            x=ds_test,
+            verbose=0
+        )
+        model.metrics(metrics, logger)
 
     # Save model to weights directory
     weights_id = weights.available(model_id, str(seed))
     weights_path = weights.path(weights_id[0], weights_id[1])
-    if 'sanity-test' not in flags:
+    if 'sanity-test' not in flags and 'no-save' not in flags:
         logger.info('Saving model to `{0}`.'.format(weights_path))
         model_nn.save(weights_path)
 
