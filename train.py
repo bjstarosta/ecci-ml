@@ -273,7 +273,7 @@ def kfold(ctx, **kwargs):
         'learning_rate': kwargs['learning_rate']
     }
 
-    flags = ['no-save', 'no-metrics']
+    flags = ['no-save']
     seed = lib.tf.set_seed(kwargs['seed'])
     dataset = load_dataset(
         kwargs['dataset'], kwargs['batch_size'], flags, seed
@@ -283,7 +283,7 @@ def kfold(ctx, **kwargs):
         n_splits=kwargs['k_value'], shuffle=True, random_state=seed
     )
     fold_no = 1
-    metrics = []
+    metrics_all = []
     for idx_train, idx_test in kfold.split(dataset):
         try:
             logger.info("Current process memory usage: {0:.3f} MB.".format(
@@ -296,17 +296,10 @@ def kfold(ctx, **kwargs):
             ds_train = dataset.slice(idx_train)
             ds_test = dataset.slice(idx_test)
 
-            model_nn = lib.tf.train(
+            model_nn, metrics = lib.tf.train(
                 kwargs['model'], ds_train, ds_test, None, seed, flags, options
             )
-
-            logger.info('Evaluating.')
-            m = model_nn.evaluate(
-                x=ds_test,
-                verbose=0
-            )
-            model.metrics(m, logger)
-            metrics.append(m)
+            metrics_all.append(metrics)
 
         except Exception:
             logger.error("Unrecoverable error.", exc_info=True)
@@ -315,11 +308,11 @@ def kfold(ctx, **kwargs):
         fold_no += 1
 
     logger.info("Averaged metrics:")
-    final_metrics = np.average(metrics, axis=0)
+    final_metrics = np.average(metrics_all, axis=0)
     model.metrics(final_metrics, logger)
 
-    final_metrics_std = np.std(metrics, axis=0)
-    for i, std in final_metrics_std:
+    final_metrics_std = np.std(metrics_all, axis=0)
+    for i, std in enumerate(final_metrics_std):
         logger.info('STD ({0}): {1:.6f}'.format(i, std))
 
 

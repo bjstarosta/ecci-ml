@@ -73,10 +73,13 @@ def train(
         seed = set_seed()
 
     # Set up dataset properties
-    ds.rs = np.random.default_rng(seed=seed)
-    ds.batch_size = options['batch_size']
-    ds.shuffle_on_epoch_end = True
-    ds.apply(model.pack_data)
+    for i in [ds, ds_test, ds_val]:
+        if i is None:
+            continue
+        i.rs = np.random.default_rng(seed=seed)
+        i.batch_size = options['batch_size']
+        i.shuffle_on_epoch_end = True
+        i.apply(model.pack_data)
 
     # Save some dataset statistics to debug
     batch0 = ds[0]
@@ -136,8 +139,9 @@ def train(
     )
 
     # Evaluate
+    metrics = []
     if 'no-metrics' not in flags:
-        logger.info('Evaluating.')
+        logger.info('Evaluating model.')
         metrics = model_nn.evaluate(
             x=ds_test,
             verbose=0
@@ -145,13 +149,13 @@ def train(
         model.metrics(metrics, logger)
 
     # Save model to weights directory
-    weights_id = weights.available(model_id, str(seed))
-    weights_path = weights.path(weights_id[0], weights_id[1])
     if 'sanity-test' not in flags and 'no-save' not in flags:
+        weights_id = weights.available(model_id, str(seed))
+        weights_path = weights.path(weights_id[0], weights_id[1])
         logger.info('Saving model to `{0}`.'.format(weights_path))
         model_nn.save(weights_path)
 
-    return model_nn
+    return model_nn, metrics
 
 
 def predict(X, model_id, weights_id):
