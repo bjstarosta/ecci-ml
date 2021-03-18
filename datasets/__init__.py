@@ -189,10 +189,22 @@ class Dataset(K.utils.Sequence):
                 ground truth/labels.
 
         """
-        i = self._get_indices(idx)
-        batch_x = [self.x[k] for k in i]
-        batch_y = [self.y[k] for k in i]
-        return self.load_data(batch_x, batch_y)
+        if isinstance(idx, int):
+            i = self._get_indices(idx)
+            batch_x = [self.x[k] for k in i]
+            batch_y = [self.y[k] for k in i]
+            return self.load_data(batch_x, batch_y)
+        elif isinstance(idx, slice):
+            start, stop, step = idx.indices(len(self))
+            ret = []
+            for j in range(start, stop, step):
+                i = self._get_indices(j)
+                batch_x = [self.x[k] for k in i]
+                batch_y = [self.y[k] for k in i]
+                ret.append(self.load_data(batch_x, batch_y))
+            return ret
+        else:
+            raise TypeError("index must be int or slice")
 
     def on_epoch_end(self):
         """Update indices after each epoch.
@@ -485,8 +497,18 @@ class DatasetCollection(Dataset):
         return len(self.indices)
 
     def __getitem__(self, idx):
-        ds, i = self.indices[idx]
-        return ds[i]
+        if isinstance(idx, int):
+            ds, i = self.indices[idx]
+            return ds[i]
+        elif isinstance(idx, slice):
+            start, stop, step = idx.indices(len(self))
+            ret = []
+            for j in range(start, stop, step):
+                ds, i = self.indices[j]
+                ret.append(ds[i])
+            return ret
+        else:
+            raise TypeError("index must be int or slice")
 
     def on_epoch_end(self):
         """Update indices after each epoch.
