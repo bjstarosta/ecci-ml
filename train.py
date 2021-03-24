@@ -249,8 +249,9 @@ def run(ctx, **kwargs):
             resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (10**3)
         ))
         lib.tf.train(
-            kwargs['model'], kwargs['revision'],
-            ds_train, ds_test, ds_val, seed, flags, options
+            kwargs['model'],
+            ds_train, ds_test, ds_val,
+            kwargs['revision'], seed, flags, options
         )
     except Exception:
         logger.error("Unrecoverable error.", exc_info=True)
