@@ -86,6 +86,9 @@ def load_image(path, type=None, mode=None):
     else:
         return None
 
+    if out is None:
+        raise RuntimeError('File could not be loaded: {0}'.format(path))
+
     out = image_convmode(out, mode)
     out = image_convtype(out, type)
     return out
