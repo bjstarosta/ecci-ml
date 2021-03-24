@@ -26,10 +26,16 @@ python ${TOOLS} ${FLAGS} augm \
 -i ${OUT}/M2_5K01_original.tif \
 -o ${OUT}/tmp_exp/
 python ${TOOLS} ${FLAGS} augm \
+-i ${OUT}/M6_5K_original.tif \
+-o ${OUT}/tmp_exp/
+python ${TOOLS} ${FLAGS} augm \
 -i ${OUT}/naresh_slide3_original.tif \
 -o ${OUT}/tmp_exp/
 python ${TOOLS} ${FLAGS} augm \
 -i ${OUT}/M2_5K01_ground.tif \
+-o ${OUT}/tmp_ground/
+python ${TOOLS} ${FLAGS} augm \
+-i ${OUT}/M6_5K_ground.png \
 -o ${OUT}/tmp_ground/
 python ${TOOLS} ${FLAGS} augm \
 -i ${OUT}/naresh_slide3_ground.tif \
