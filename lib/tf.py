@@ -37,7 +37,8 @@ def set_seed(seed=None):
 
 
 def train(
-    model_id, ds, ds_test, ds_val=None, seed=None, flags=[], options={}
+    model_id, ds, ds_test, ds_val=None,
+    revision_id=None, seed=None, flags=[], options={}
 ):
     """Train and save neural network model.
 
@@ -47,16 +48,16 @@ def train(
         ds_test (datasets.Dataset): Dataset object to be used for testing.
         ds_val (datasets.Dataset): Dataset object to be used for validation.
             If None is passed, validation is not performed.
+        revision_id (str): Revision identifier of the model to be updated.
+            If None is passed, a new model will be created.
         seed (int): Random number generator seed.
         flags (list): A flag is set if it is present in the passed list.
         List of possible flags:
-            overwrite-model: The function does not check for previously
-                trained models to add training data to, and instead starts
-                a new model and overwrites the one existing in the default
-                location.
             sanity-test: Flag for testing mode (model not saved).
             no-save: Do not save this model.
             no-metrics: Do not evaluate this model.
+            no-early-stopping: Always train the specfied number of epochs.
+                Otherwise training stops when loss begins to stagnate.
         options (dict): Additional training options. Is intersected with the
             _train_def_options dictionary.
 
@@ -96,12 +97,15 @@ def train(
     ))
 
     # Load a model to add to or set up a new one
-    if ('overwrite-model' not in flags
-    and 'sanity-test' not in flags
-    and 'no-save' not in flags
-    and weights.weights_exist(model_id)):
-        logger.info('Pre-trained weights found. Loading latest iteration.')
-        model_nn = weights.load_weights(model_id)
+    if ('sanity-test' not in flags and 'no-save' not in flags
+    and revision_id is not None
+    and weights.weights_exist(model_id, revision_id)):
+        logger.info(
+            'Pre-trained weights found. Loading iteration {0}.'.format(
+                revision_id
+            )
+        )
+        model_nn = weights.load_weights(model_id, revision_id)
     else:
         logger.info(
             'Pre-trained weights not used. Building model from scratch.')
@@ -150,7 +154,11 @@ def train(
 
     # Save model to weights directory
     if 'sanity-test' not in flags and 'no-save' not in flags:
-        weights_id = weights.available(model_id, str(seed))
+        if revision_id is None:
+            weights_id = weights.available(model_id, str(seed))
+        else:
+            weights_id = weights.available(model_id, revision_id)
+
         weights_path = weights.path(weights_id[0], weights_id[1])
         logger.info('Saving model to `{0}`.'.format(weights_path))
         model_nn.save(weights_path)

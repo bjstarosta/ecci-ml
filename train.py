@@ -60,6 +60,14 @@ _train_click_options = [
         help="""Random number generator seed."""
     ),
     click.option(
+        '-r',
+        '--revision',
+        type=str,
+        default=None,
+        help="""Revision ID of model to load for updating weights.
+            A new model revision will be created if this is not set."""
+    ),
+    click.option(
         '-ne',
         '--no-early-stopping',
         is_flag=True,
@@ -195,13 +203,6 @@ def main(ctx, **kwargs):
     help="""Fraction of test dataset to split off as validation data."""
 )
 @click.option(
-    '-o',
-    '--overwrite',
-    is_flag=True,
-    help="""Flag for overwriting previously trained model instead of adding
-        to it."""
-)
-@click.option(
     '-t',
     '--test',
     is_flag=True,
@@ -230,8 +231,6 @@ def run(ctx, **kwargs):
     }
 
     flags = []
-    if kwargs['overwrite'] is True:
-        flags.append('overwrite-model')
     if kwargs['test'] is True:
         flags.append('sanity-test')
     if kwargs['no_early_stopping'] is True:
@@ -250,7 +249,8 @@ def run(ctx, **kwargs):
             resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (10**3)
         ))
         lib.tf.train(
-            kwargs['model'], ds_train, ds_test, ds_val, seed, flags, options
+            kwargs['model'], kwargs['revision'],
+            ds_train, ds_test, ds_val, seed, flags, options
         )
     except Exception:
         logger.error("Unrecoverable error.", exc_info=True)
