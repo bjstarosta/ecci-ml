@@ -117,7 +117,7 @@ def train(
         write_graph=True,
         write_images=True
     ))
-    if hasattr(model, 'es_callback'):
+    if 'no-early-stopping' not in flags and hasattr(model, 'es_callback'):
         callbacks.append(model.es_callback)
     # if 'sanity-test' not in flags:
     #     callbacks.append(tf.keras.callbacks.ModelCheckpoint(

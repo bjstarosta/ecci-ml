@@ -58,6 +58,15 @@ _train_click_options = [
         default=None,
         show_default='current UTC date in integer format, e.g. 1012020',
         help="""Random number generator seed."""
+    ),
+    click.option(
+        '-ne',
+        '--no-early-stopping',
+        is_flag=True,
+        help="""Flag for disabling early stopping functionality. Setting this
+            means the model will always train for the set number of epochs,
+            instead of stopping after reaching a threshold for loss
+            improvement."""
     )
 ]
 
@@ -225,6 +234,8 @@ def run(ctx, **kwargs):
         flags.append('overwrite-model')
     if kwargs['test'] is True:
         flags.append('sanity-test')
+    if kwargs['no_early_stopping'] is True:
+        flags.append('no-early-stopping')
 
     seed = lib.tf.set_seed(kwargs['seed'])
     dataset = load_dataset(
@@ -274,6 +285,9 @@ def kfold(ctx, **kwargs):
     }
 
     flags = ['no-save']
+    if kwargs['no_early_stopping'] is True:
+        flags.append('no-early-stopping')
+
     seed = lib.tf.set_seed(kwargs['seed'])
     dataset = load_dataset(
         kwargs['dataset'], kwargs['batch_size'], flags, seed
