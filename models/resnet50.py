@@ -108,7 +108,7 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
         return L.ReLU()(input)
 
     inputs = L.Input(input_shape)
-    pad = L.ZeroPadding2D(padding=(3, 3))(inputs)
+    pad = L.ZeroPadding2D(padding=(5, 5))(inputs)
 
     start = L.Conv2D(filters=64, kernel_size=(7, 7), strides=(2, 2))(pad)
     start = L.BatchNormalization()(start)
@@ -136,7 +136,11 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     layer5 = identity_block((512, 2048), act_fn, layer5)
 
     # output
-    out = L.AveragePooling2D(pool_size=(2, 2), padding='same')(layer5)
+    out = L.UpSampling2D(size=(4, 4))(layer5)
+    out = L.Conv2D(filters=input_shape[2], kernel_size=(1, 1),
+        padding='same')(out)
+    out = L.Activation('sigmoid')(out)
+    # out = L.AveragePooling2D(pool_size=(2, 2), padding='same')(layer5)
 
     model = K.Model(inputs=inputs, outputs=out)
     model.compile(
