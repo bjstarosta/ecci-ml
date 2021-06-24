@@ -10,6 +10,8 @@ import tensorflow.keras as K
 import tensorflow.keras.layers as L
 import numpy as np
 
+import lib.image as image
+
 
 es_callback = tf.keras.callbacks.EarlyStopping(
     monitor='loss',
@@ -145,24 +147,39 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     return model
 
 
-def pack_data(X):
+def pack_data(X, train=False):
     """Convert array of images to machine trainable data.
 
     Args:
         X (numpy.ndarray): Image data represented as a single image
             or array of images.
+        train (bool): Set to true if passed data is training data and
+            transformations don't apply.
 
     Returns:
         numpy.ndarray: Transformed image data.
 
     """
-    # scale image data to (0, 1)
-    X = (X.astype('float32') / 255.0)
+    X_ = []
+    for i in X:
+        # scale image data to (0, 1)
+        i = image.fscale(i, 0., 1., 0, 255)
+        if train is False:
+            # remove background
+            i = image.bg_removal(i)
+            # centre the background
+            i = i + (0.5 - np.mean(i))
+    X = np.array(X_)
+
     # pad image
     X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
     # add channel dimension
     X = np.expand_dims(X, axis=-1)
     return X
+
+
+def pack_training_data(X):
+    return pack_data(X, True)
 
 
 def unpack_data(X):
@@ -176,11 +193,12 @@ def unpack_data(X):
             or array of images.
 
     """
-    # unpad image
     X_ = []
     for i in X:
+        # unpad image
         X_.append(i[64:-64, 64:-64])
     X = np.array(X_)
+
     # clip image data to avoid out of bounds values
     X = np.clip(X, 0., 1.)
     # convert float to greyscale int

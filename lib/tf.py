@@ -82,6 +82,9 @@ def train(
         i.shuffle_on_epoch_end = True
         i.apply(model.pack_data)
 
+    if ds_test is not None:
+        ds_test.apply(model.pack_training_data)
+
     # Save some dataset statistics to debug
     batch0 = ds[0]
     logger.debug("Statistics of first data batch:")
