@@ -162,13 +162,18 @@ def pack_data(X, train=False):
     """
     X_ = []
     for i in X:
-        # scale image data to (0, 1)
-        i = image.fscale(i, 0., 1., 0, 255)
+        i = image.convmode(i, 'gs')
+        i = image.convtype(i, 'uint8')
         if train is False:
             # remove background
             i = image.bg_removal(i)
+        i = image.convtype(i, 'float32')
+        if train is False:
             # centre the background
             i = i + (0.5 - np.mean(i))
+        # scale image data to (0, 1)
+        i = image.fscale(i, 0., 1., 0, 255)
+        X_.append(i)
     X = np.array(X_)
 
     # pad image
