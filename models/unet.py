@@ -171,11 +171,11 @@ def pack_data(X, train=False):
         if train is False:
             # centre the background
             i = i + (0.5 - np.mean(i))
-        # scale image data to (0, 1)
-        i = image.fscale(i, 0., 1., 0, 255)
+        # clip image data to (0, 1)
+        i = np.clip(i, 0, 1)
         X_.append(i)
     X = np.array(X_)
-
+    
     # pad image
     X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
     # add channel dimension
