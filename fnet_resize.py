@@ -9,6 +9,7 @@ import matplotlib.backends.backend_pdf as backend_pdf
 import lib.logger
 import lib.tf
 import lib.utils
+import lib.image
 
 logger = lib.logger.logger
 lib.logger.start_stream_log()
@@ -45,7 +46,7 @@ weights_id = (model, iteration)
 
 # In [ ]
 
-im = lib.utils.load_image(impath, 'uint8', 'gs1c')
+im = lib.image.load_image(impath, 'uint8', 'gs1c')
 imresized = []
 imchunks = []
 
@@ -58,8 +59,8 @@ for i, method in enumerate(methods):
 
     # split into two 512 pixel chunks
     X = [
-        lib.utils.image_convmode(im_[:512, :512], 'gs'),
-        lib.utils.image_convmode(im_[:512, -512:], 'gs')
+        lib.image.convmode(im_[:512, :512], 'gs'),
+        lib.image.convmode(im_[:512, -512:], 'gs')
     ]
     imchunks += X
 

@@ -20,7 +20,7 @@ if __name__ == '__main__':
     sys.path.append(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../'))
 
-import lib.utils as utils
+import lib.image as image
 
 
 images = [
@@ -85,7 +85,7 @@ for i, dom in enumerate(imdom):
     p = matplotlib.collections.PatchCollection(patches, alpha=0.5)
     p.set_color((1, 0, 0))
     ax.add_collection(p)
-    ax.imshow(utils.load_image(images[i][1]), cmap=plt.cm.gray)
+    ax.imshow(image.load_image(images[i][1]), cmap=plt.cm.gray)
 
 for i in imdom:
     i.unlink()

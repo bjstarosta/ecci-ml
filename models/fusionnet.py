@@ -25,8 +25,7 @@ def conv_block(feat_maps_out, act_fn, input):
     Shape of input tensor will be preserved due to stride=1.
 
     Args:
-        feat_maps_out (int): Number of filters resulting at the end of this
-            layer.
+        feat_maps_out (int): Number of filters.
         act_fn (str): Activation function.
         input (tf.keras.layers.Layer): Previous layer.
 
@@ -47,8 +46,7 @@ def conv_block_3(feat_maps_out, act_fn, input):
     Shape of input tensor will be preserved.
 
     Args:
-        feat_maps_out (int): Number of filters resulting at the end of this
-            layer.
+        feat_maps_out (int): Number of filters.
         act_fn (str): Activation function.
         input (tf.keras.layers.Layer): Previous layer.
 
@@ -68,8 +66,7 @@ def conv_trans_block(feat_maps_out, act_fn, input):
     Shape of input tensor will be doubled, number of filters will be halved.
 
     Args:
-        feat_maps_out (int): Number of filters resulting at the end of this
-            layer.
+        feat_maps_out (int): Number of filters.
         act_fn (str): Activation function.
         input (tf.keras.layers.Layer): Previous layer.
 
@@ -106,8 +103,7 @@ def conv_residual_conv(feat_maps_out, act_fn, input):
     Shape of input tensor will be preserved.
 
     Args:
-        feat_maps_out (int): Number of filters resulting at the end of this
-            layer.
+        feat_maps_out (int): Number of filters.
         act_fn (str): Activation function.
         input (tf.keras.layers.Layer): Previous layer.
 
@@ -122,7 +118,7 @@ def conv_residual_conv(feat_maps_out, act_fn, input):
     return conv_3
 
 
-def build(lr=0.001, input_shape=(640, 640, 1)):
+def build(lr=0.001, input_shape=(640, 640, 1), num_classes=2):
     inputs = L.Input(input_shape)
     n_filters = 32
 
@@ -160,15 +156,26 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     up_4 = conv_residual_conv(n_filters * 1, act_fn_decoder, skip_4)
 
     # output
-    out = L.Conv2D(input_shape[2],
-        kernel_size=3, strides=1, padding='same')(up_4)
-    out_2 = L.Activation('relu')(out)
+    out = L.Conv2D(num_classes, kernel_size=3, strides=1, padding='same')(up_4)
+    out_2 = L.Activation('sigmoid')(out)
 
     model = K.Model(inputs=inputs, outputs=out_2)
+
+    if num_classes > 2:
+        loss = K.losses.Huber()
+        metrics = [
+            K.metrics.Accuracy(),
+            K.metrics.CategoricalCrossentropy()
+        ]
+    else:
+        loss = K.losses.BinaryCrossentropy()
+        metrics = [
+            K.metrics.BinaryAccuracy(),
+            K.metrics.BinaryCrossentropy()
+        ]
+
     model.compile(
-        optimizer=K.optimizers.Adam(lr=lr),
-        loss=K.losses.Huber(),
-        metrics=[K.metrics.MeanSquaredError()]
+        optimizer=K.optimizers.Adam(lr=lr), loss=loss, metrics=metrics
     )
 
     return model

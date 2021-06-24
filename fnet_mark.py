@@ -15,7 +15,7 @@ import matplotlib.patches
 import matplotlib.collections
 
 import lib.logger
-import lib.utils as utils
+import lib.image as image
 import lib.tf
 
 
@@ -23,6 +23,14 @@ import lib.tf
 
 logger = lib.logger.logger
 lib.logger.start_stream_log()
+
+# IMAGE_PATH = 'M2_5K.TIF'
+# MODEL = 'fusionnet'
+# WEIGHTS = ('fusionnet', '20201216_1')
+
+IMAGE_PATH = 'M2_5K.TIF'
+MODEL = 'fusionnet_mc'
+WEIGHTS = ('fusionnet_mc', '20210210_3')
 
 # In [ ]
 
@@ -36,9 +44,9 @@ lib.logger.start_stream_log()
 # ]
 # im = []
 # for i in images:
-#     im.append(utils.load_image(i))
+#     im.append(image.load_image(i))
 
-image = utils.load_image('M2_5K.TIF')
+image = image.load_image(IMAGE_PATH)
 
 # Get rid of extraneous dimension.
 if len(image.shape) == 3:
@@ -112,7 +120,7 @@ ax.imshow(image_padded, cmap=plt.cm.gray)
 
 # Perform predictions
 try:
-    Y = lib.tf.predict(X, 'fusionnet', ('fusionnet', '20201216_1'))
+    Y = lib.tf.predict(X, MODEL, WEIGHTS)
 except Exception:
     logger.error("Unrecoverable error.", exc_info=True)
     exit(1)

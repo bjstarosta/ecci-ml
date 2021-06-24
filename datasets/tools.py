@@ -18,7 +18,7 @@ if __name__ == '__main__':
     sys.path.append(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
-import lib.utils as utils
+import lib.image as image
 
 
 def split_chunks(im, w, h, stride=1.):
@@ -81,9 +81,9 @@ def _load_images(path, type=None, mode=None):
         numpy.ndarray: Images in numpy.ndarray type.
     """
     if not os.path.isdir(path):
-        if not utils.valid_image(path):
+        if not image.valid_image(path):
             raise IOError('"{0}": Not a valid image.'.format(path))
-        yield path, utils.load_image(path, type, mode)
+        yield path, image.load_image(path, type, mode)
         return
 
     images = os.listdir(path)
@@ -91,13 +91,13 @@ def _load_images(path, type=None, mode=None):
     images_valid = []
     for im in images:
         im_path = os.path.join(path, im)
-        if not utils.valid_image(im_path):
+        if not image.valid_image(im_path):
             continue
         images_valid.append(im_path)
     images_valid.sort()
 
     for im in images_valid:
-        yield im, utils.load_image(im, type, mode)
+        yield im, image.load_image(im, type, mode)
 
 
 @click.group()
@@ -191,7 +191,7 @@ def split(ctx, **kwargs):
         for i, o in enumerate(out):
             path = os.path.join(kwargs['output'],
                 ext[0] + '_' + str(i) + ext[1])
-            utils.save_image(path, o)
+            image.save_image(path, o)
             n2 += 1
 
         n += 1
@@ -231,7 +231,7 @@ def augm(ctx, **kwargs):
         for o in out:
             path = os.path.join(kwargs['output'],
                 ext[0] + '_' + str(m) + ext[1])
-            utils.save_image(path, o)
+            image.save_image(path, o)
             m += 1
             n2 += 1
 
@@ -284,7 +284,7 @@ def pad(ctx, **kwargs):
         ctx.obj['logger'].debug(im[0])
         path = os.path.join(kwargs['output'], os.path.basename(im[0]))
         out = np.pad(im[1], kwargs['pad_width'], kwargs['mode'])
-        utils.save_image(path, out)
+        image.save_image(path, out)
         n += 1
 
     ctx.obj['logger'].info("{0} images processed.".format(n))

@@ -15,7 +15,7 @@ import tensorflow.keras as K
 import click
 
 import lib.logger
-import lib.utils as utils
+import lib.image as image
 
 
 logger = lib.logger.logger
@@ -388,7 +388,7 @@ class Dataset(K.utils.Sequence):
 
         for im in images:
             im_path = os.path.join(path, im)
-            if not utils.valid_image(im_path):
+            if not image.valid_image(im_path):
                 continue
             X.append(im_path)
         X.sort()
@@ -413,10 +413,10 @@ class Dataset(K.utils.Sequence):
                 the dataset directory.
             indices (list): List of image filenames.
             type (str): Value type to save the image with. See
-                lib.utils.image_convtype() for documentation of accepted
+                lib.image.convtype() for documentation of accepted
                 values.
             mode (str): Channel mode to save the image with. See
-                lib.utils.image_convmode() for documentation of accepted
+                lib.image.convmode() for documentation of accepted
                 values.
 
         Returns:
@@ -429,7 +429,7 @@ class Dataset(K.utils.Sequence):
         path = os.path.join(self.basepath, dir)
 
         for im in indices:
-            im = utils.load_image(os.path.join(path, im), type, mode)
+            im = image.load_image(os.path.join(path, im), type, mode)
             X.append(im)
 
         return self._apply(np.array(X))

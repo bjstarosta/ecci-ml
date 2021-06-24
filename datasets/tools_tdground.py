@@ -19,7 +19,7 @@ if __name__ == '__main__':
     sys.path.append(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
-import lib.utils as utils
+import lib.image as image
 from datasets.tools import _load_images
 
 
@@ -69,7 +69,9 @@ def _blob_coords_mprun(input, kwargs):
     return outpath
 
 
-def generate_chunks_csv(coords, im_shape, w, h, stride=1., disk_radius=5):
+def generate_chunks_csv(
+    coords, im_shape, w, h, stride=1., type='disk', radius=5
+):
     """Generate ground truth image chunks using a sliding window approach.
 
     Args:
@@ -82,7 +84,7 @@ def generate_chunks_csv(coords, im_shape, w, h, stride=1., disk_radius=5):
         h (int): Desired chunk height.
         stride (float): Fraction of width and height to advance by per
             iteration.
-        disk_radius (int): Pixel radius of the generated markers.
+        radius (int): Pixel radius of the generated markers.
 
     Returns:
         list: List of numpy.ndarray type images.
@@ -99,17 +101,74 @@ def generate_chunks_csv(coords, im_shape, w, h, stride=1., disk_radius=5):
             im = np.zeros(chunk_shape)
 
             for row in coords:
-                if ((wx + disk_radius <= row['x'] <= wx2 - disk_radius)
-                and (wy + disk_radius <= row['y'] <= wy2 - disk_radius)):
-                    rr, cc = skimage.draw.disk(
-                        (row['y'] - wy, row['x'] - wx),
-                        disk_radius,
-                        shape=chunk_shape
-                    )
-                    im[rr, cc] = 1
+                if ((wx + radius <= row['x'] <= wx2 - radius)
+                and (wy + radius <= row['y'] <= wy2 - radius)):
+
+                    mark_x = row['x'] - wx
+                    mark_y = row['y'] - wy
+
+                    if type == 'disk':
+                        rr, cc = skimage.draw.disk(
+                            (mark_y, mark_x),
+                            radius,
+                            shape=chunk_shape
+                        )
+                        im[rr, cc] = 1
+                    elif type == 'square':
+                        rr, cc = skimage.draw.rectangle(
+                            (mark_y - radius, mark_x - radius),
+                            (mark_y + radius, mark_x + radius),
+                            shape=chunk_shape
+                        )
+                        im[rr, cc] = 1
 
             ret.append(im)
     return ret
+
+
+def _read_csv(path):
+    coords = []
+    meta = {}
+
+    with open(path) as f:
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader):
+            if row['x'][0] == '#':
+                meta_name = row['x'][1:]
+                if meta_name in ['image_width', 'image_height']:
+                    meta[meta_name] = int(row['y'])
+            else:
+                coords.append({
+                    'x': int(float(row['x'])),
+                    'y': int(float(row['y'])),
+                    'r': float(row['r'])
+                })
+
+    return coords, meta
+
+
+def _load_csv(path):
+    if not os.path.isdir(path):
+        yield path, _read_csv(path)
+        return
+
+    files = os.listdir(path)
+
+    files_valid = []
+    for f in files:
+        f_path = os.path.join(path, f)
+
+        if not os.path.isfile(f_path):
+            continue
+        _, ext = os.path.splitext(f_path.lower())
+        if ext != '.csv':
+            continue
+
+        files_valid.append(f_path)
+    files_valid.sort()
+
+    for f_path in files_valid:
+        yield f_path, _read_csv(f_path)
 
 
 @click.group()
@@ -247,6 +306,13 @@ def blob_coords(ctx, **kwargs):
     help="""Proportion of width and height to advance the sliding window by."""
 )
 @click.option(
+    '-t',
+    '--type',
+    type=click.Choice(['disk', 'square'], case_sensitive=False),
+    default='disk',
+    help="""Type of generated markers."""
+)
+@click.option(
     '--diskradius',
     type=int,
     default=5,
@@ -261,49 +327,6 @@ def make_circles(ctx, **kwargs):
     marking the coordinates with filled white circles."""
     ctx.obj['logger'].info("Operation begins: make_circles")
 
-    def _read_csv(path):
-        coords = []
-        meta = {}
-
-        with open(path) as f:
-            reader = csv.DictReader(f)
-            for i, row in enumerate(reader):
-                if row['x'][0] == '#':
-                    meta_name = row['x'][1:]
-                    if meta_name in ['image_width', 'image_height']:
-                        meta[meta_name] = int(row['y'])
-                else:
-                    coords.append({
-                        'x': int(float(row['x'])),
-                        'y': int(float(row['y'])),
-                        'r': float(row['r'])
-                    })
-
-        return coords, meta
-
-    def _load_csv(path):
-        if not os.path.isdir(path):
-            yield path, _read_csv(path)
-            return
-
-        files = os.listdir(path)
-
-        files_valid = []
-        for f in files:
-            f_path = os.path.join(path, f)
-
-            if not os.path.isfile(f_path):
-                continue
-            _, ext = os.path.splitext(f_path.lower())
-            if ext != '.csv':
-                continue
-
-            files_valid.append(f_path)
-        files_valid.sort()
-
-        for f_path in files_valid:
-            yield f_path, _read_csv(f_path)
-
     n_csv = 0
     n_img = 0
     for path, (coords, meta) in _load_csv(kwargs['input']):
@@ -313,14 +336,14 @@ def make_circles(ctx, **kwargs):
         out = generate_chunks_csv(
             coords, (meta['image_height'], meta['image_width']),
             kwargs['width'], kwargs['height'], kwargs['stride'],
-            kwargs['diskradius']
+            kwargs['type'], kwargs['diskradius']
         )
         ctx.obj['logger'].debug("{0} chunks returned.".format(len(out)))
 
         for i, o in enumerate(out):
             outpath = os.path.join(kwargs['output'],
                 ext[0] + '_' + str(i) + '.tif')
-            utils.save_image(outpath, o, type='uint8')
+            image.save_image(outpath, o, type='uint8')
             n_img += 1
 
         n_csv += 1

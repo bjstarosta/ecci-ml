@@ -1,9 +1,19 @@
 __pycache__/
+
+slurm_*
+*-slurm.sh
+*.TIF
+*.png
+*.tar.gz
+test*.py
+
+_old/
 logs/*.log
 logs/*/*
 weights/*/
 tests/
 
+!datasets/*/*.png
 datasets/*/*/*.tif
 datasets/*/*.txt
 datasets/*/*/*.txt
@@ -15,11 +25,3 @@ datasets/ecci_test
 datasets/emsoft_gap001
 
 weights/*.h5
-
-_old/
-
-slurm_*
-*-slurm.sh
-*.TIF
-*.png
-test*.py

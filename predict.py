@@ -14,6 +14,7 @@ import numpy as np
 import lib.logger
 import lib.tf
 import lib.utils
+import lib.image
 import models
 import weights
 
@@ -91,7 +92,7 @@ def image_dir(ctx, **kwargs):
     lst = []
     for f in os.listdir(kwargs['input']):
         f_path = os.path.join(kwargs['input'], f)
-        if not lib.utils.valid_image(f_path):
+        if not lib.image.valid_image(f_path):
             continue
         lst.append(f_path)
     lst.sort()
@@ -104,7 +105,7 @@ def image_dir(ctx, **kwargs):
         show_pos=True
     ) as pbar:
         for im in lst:
-            im = lib.utils.load_image(im)
+            im = lib.image.load_image(im)
             X.append(im)
             pbar.update(1)
 
@@ -130,13 +131,78 @@ def image_dir(ctx, **kwargs):
     ) as pbar:
         i = 0
         for im in Y:
-            im = lib.utils.save_image(
+            im = lib.image.save_image(
                 os.path.join(kwargs['output'], os.path.basename(lst[i])), im
             )
             pbar.update(1)
             i += 1
 
     logger.info('Completed predictions on {0} images.'.format(len(Y)))
+
+
+@main.command()
+@click.argument('model', nargs=1, type=str)
+@click.argument('iteration', nargs=1, type=str)
+@click.option(
+    '-i',
+    '--input',
+    required=True,
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, readable=True
+    )
+)
+@click.option(
+    '-o',
+    '--output',
+    required=True,
+    type=click.Path(
+        exists=False, file_okay=True, dir_okay=False, writable=True
+    )
+)
+@click.pass_context
+def image(ctx, **kwargs):
+    """Predict data using the selected model on an image."""
+    if not models.model_exists(kwargs['model']):
+        raise click.UsageError(
+            "Model '{0}' does not exist.".format(kwargs['model']),
+            ctx=ctx
+        )
+
+    if not weights.weights_exist(kwargs['model'], kwargs['iteration']):
+        raise click.UsageError(
+            "Model '{0}' (iteration: '{1}') does not exist.".format(
+                kwargs['model'], kwargs['iteration']),
+            ctx=ctx
+        )
+
+    ctx.obj['model'] = kwargs['model']
+    ctx.obj['weights'] = (kwargs['model'], kwargs['iteration'])
+
+    if not lib.image.valid_image(kwargs['input']):
+        raise click.UsageError(
+            "File '{0}' is not a valid image.".format(
+                kwargs['input']),
+            ctx=ctx
+        )
+
+    X = np.array([lib.image.load_image(kwargs['input'])])
+
+    logger.info('Prediction starts.')
+
+    try:
+        Y = lib.tf.predict(X, ctx.obj['model'], ctx.obj['weights'])
+    except Exception:
+        logger.error("Unrecoverable error.", exc_info=True)
+        exit(1)
+
+    logger.debug("min(Y)={0}, max(Y)={1}, avg(Y)={2}, var(Y)={3}".format(
+        np.min(Y), np.max(Y), np.average(Y), np.var(Y)
+    ))
+    logger.debug("Y.shape={0}, Y.dtype={1}".format(Y.shape, Y.dtype))
+
+    lib.image.save_image(kwargs['output'], Y[0])
+
+    logger.info('Prediction saved to "{0}".'.format(kwargs['output']))
 
 
 if __name__ == '__main__':
