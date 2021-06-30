@@ -10,6 +10,8 @@ import tensorflow.keras as K
 import tensorflow.keras.layers as L
 import numpy as np
 
+import lib.image as image
+
 
 es_callback = tf.keras.callbacks.EarlyStopping(
     monitor='loss',
