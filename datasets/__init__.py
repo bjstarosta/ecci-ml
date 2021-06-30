@@ -161,10 +161,11 @@ class Dataset(K.utils.Sequence):
         self.indices = None
 
         self._apply = lambda x: x
+        self._preprocess = lambda x: x
         self._broadcast_attrs = [
             'basepath', 'id', 'rs', 'desc', 'generated',
             'batch_size', 'shuffle_on_epoch_end',
-            'logger', '_apply'
+            'logger', '_apply', '_preprocess'
         ]
 
     def __len__(self):
@@ -358,6 +359,24 @@ class Dataset(K.utils.Sequence):
 
         self._apply = fn
 
+    def preprocess(self, fn):
+        """Set function to preprocess the training images on load.
+
+        This function should contain only image filters and/or transformations
+        to be applied to only the training images, and not the ground truth.
+
+        Args:
+            fn (callable): Function to pass loaded data through.
+
+        Returns:
+            None
+
+        """
+        if not callable(fn):
+            raise DatasetException('Expected callable var in preprocess().')
+
+        self._preprocess = fn
+
     def _list_images(self, dir, limit=None):
         """Prepare an image dataset file listing in memory and return it.
 
@@ -403,7 +422,9 @@ class Dataset(K.utils.Sequence):
 
         return np.array(X)
 
-    def _load_images(self, dir, indices, type=None, mode=None):
+    def _load_images(
+        self, dir, indices, type=None, mode=None, preprocess=False
+    ):
         """Load a list of images from the specified directory.
 
         For use from within the load_data() batch generation method.
@@ -418,6 +439,8 @@ class Dataset(K.utils.Sequence):
             mode (str): Channel mode to save the image with. See
                 lib.image.convmode() for documentation of accepted
                 values.
+            preprocess (bool): Set to True if loaded images are to be passed
+                through the preprocessing function.
 
         Returns:
             numpy.ndarray: Numpy array of images. Depending on the images
@@ -431,6 +454,9 @@ class Dataset(K.utils.Sequence):
         for im in indices:
             im = image.load_image(os.path.join(path, im), type, mode)
             X.append(im)
+
+        if preprocess is True:
+            X = self._preprocess(X)
 
         return self._apply(np.array(X))
 
@@ -610,6 +636,10 @@ class DatasetCollection(Dataset):
     def apply(self, fn):
         for ds in self.datasets:
             ds.apply(fn)
+
+    def preprocess(self, fn):
+        for ds in self.datasets:
+            ds.preprocess(fn)
 
 
 class DatasetException(Exception):

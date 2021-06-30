@@ -34,6 +34,6 @@ class nt1605_types(datasets.Dataset):
 
     def load_data(self, batch_x, batch_y):
         return (
-            self._load_images('exp', batch_x),
-            self._load_images('ground', batch_y)
+            self._load_images('exp', batch_x, 'uint8', 'gs', preprocess=True),
+            self._load_images('ground', batch_y, 'uint8', 'gs')
         )

@@ -81,9 +81,7 @@ def train(
         i.batch_size = options['batch_size']
         i.shuffle_on_epoch_end = True
         i.apply(model.pack_data)
-
-    if ds_test is not None:
-        ds_test.apply(model.pack_training_data)
+        i.preprocess(model.preprocess_data)
 
     # Save some dataset statistics to debug
     batch0 = ds[0]

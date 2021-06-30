@@ -34,6 +34,6 @@ class nanodash_pos(datasets.Dataset):
 
     def load_data(self, batch_x, batch_y):
         return (
-            self._load_images('exp', batch_x, 'uint8', 'gs'),
+            self._load_images('exp', batch_x, 'uint8', 'gs', preprocess=True),
             self._load_images('ground', batch_y, 'uint8', 'gs')
         )

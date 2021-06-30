@@ -147,14 +147,38 @@ def build(lr=0.001, input_shape=(640, 640, 1)):
     return model
 
 
-def pack_data(X, train=False):
+def preprocess_data(X):
+    """Preprocess array of images for training.
+
+    Args:
+        X (numpy.ndarray): Image data represented as an array of images.
+
+    Returns:
+        numpy.ndarray: Pre-processed image data.
+
+    """
+    X_ = []
+    for i in X:
+        i = image.convmode(i, 'gs')
+        i = image.convtype(i, 'uint8')
+        # remove background
+        i = image.bg_removal(i)
+        i = image.convtype(i, 'float32')
+        # centre the background
+        i = i + (0.5 - np.mean(i))
+        # clip image data to (0, 1)
+        i = image.fscale(i, 0, 1)
+        # i = np.clip(i, 0, 1)
+        X_.append(i)
+    X = np.array(X_)
+    return X
+
+
+def pack_data(X):
     """Convert array of images to machine trainable data.
 
     Args:
-        X (numpy.ndarray): Image data represented as a single image
-            or array of images.
-        train (bool): Set to true if passed data is training data and
-            transformations don't apply.
+        X (numpy.ndarray): Image data represented as an array of images.
 
     Returns:
         numpy.ndarray: Transformed image data.
@@ -162,29 +186,14 @@ def pack_data(X, train=False):
     """
     X_ = []
     for i in X:
-        i = image.convmode(i, 'gs')
-        i = image.convtype(i, 'uint8')
-        if train is False:
-            # remove background
-            i = image.bg_removal(i)
+        i = image.convmode(i, 'gs1c')
         i = image.convtype(i, 'float32')
-        if train is False:
-            # centre the background
-            i = i + (0.5 - np.mean(i))
-        # clip image data to (0, 1)
-        i = np.clip(i, 0, 1)
         X_.append(i)
     X = np.array(X_)
-    
+
     # pad image
-    X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
-    # add channel dimension
-    X = np.expand_dims(X, axis=-1)
+    X = np.pad(X, ((0, 0), (64, 64), (64, 64), (0, 0)), 'reflect')
     return X
-
-
-def pack_training_data(X):
-    return pack_data(X, True)
 
 
 def unpack_data(X):
@@ -194,8 +203,7 @@ def unpack_data(X):
         X (numpy.ndarray): Transformed image data.
 
     Returns:
-        numpy.ndarray: Image data represented as a single image
-            or array of images.
+        numpy.ndarray: Image data represented as an array of images.
 
     """
     X_ = []

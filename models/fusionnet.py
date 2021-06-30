@@ -181,12 +181,24 @@ def build(lr=0.001, input_shape=(640, 640, 1), num_classes=2):
     return model
 
 
+def preprocess_data(X):
+    """Preprocess array of images for training.
+
+    Args:
+        X (numpy.ndarray): Image data represented as an array of images.
+
+    Returns:
+        numpy.ndarray: Pre-processed image data.
+
+    """
+    return X
+
+
 def pack_data(X):
     """Convert array of images to machine trainable data.
 
     Args:
-        X (numpy.ndarray): Image data represented as a single image
-            or array of images.
+        X (numpy.ndarray): Image data represented as an array of images.
 
     Returns:
         numpy.ndarray: Transformed image data.
@@ -208,8 +220,7 @@ def unpack_data(X):
         X (numpy.ndarray): Transformed image data.
 
     Returns:
-        numpy.ndarray: Image data represented as a single image
-            or array of images.
+        numpy.ndarray: Image data represented as an array of images.
 
     """
     # unpad image
