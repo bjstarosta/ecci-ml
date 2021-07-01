@@ -163,18 +163,19 @@ def build(lr=0.001, input_shape=(640, 640, 1), num_classes=2):
 
     model = K.Model(inputs=inputs, outputs=out_2)
 
-    if num_classes > 2:
-        loss = K.losses.Huber()
-        metrics = [
-            K.metrics.Accuracy(),
-            K.metrics.CategoricalCrossentropy()
-        ]
-    else:
-        loss = K.losses.BinaryCrossentropy()
-        metrics = [
-            K.metrics.BinaryAccuracy(),
-            K.metrics.BinaryCrossentropy()
-        ]
+    # if num_classes > 2:
+    loss = K.losses.MeanSquaredError()
+    metrics = [
+        K.metrics.MeanSquaredError(),
+        K.metrics.Accuracy(),
+        K.metrics.CategoricalCrossentropy()
+    ]
+    # else:
+    #     loss = K.losses.BinaryCrossentropy()
+    #     metrics = [
+    #         K.metrics.BinaryAccuracy(),
+    #         K.metrics.BinaryCrossentropy()
+    #     ]
 
     model.compile(
         optimizer=K.optimizers.Adam(lr=lr), loss=loss, metrics=metrics
