@@ -109,6 +109,8 @@ def convtype(img, type):
             - 'uint8': returns a range of integer values (0...255).
             - 'float32': returns a range of single precision floating point
                 values (0...1).
+            - 'float64': returns a range of double precision floating point
+                values (0...1).
             - None: returns the image as it was loaded.
 
     Returns:
@@ -123,6 +125,10 @@ def convtype(img, type):
         if np.issubdtype(img.dtype, np.integer):
             img = img.astype('float32') / 255.0
         img = img.astype('float32')
+    elif type == 'float64':
+        if np.issubdtype(img.dtype, np.integer):
+            img = img.astype('float64') / 255.0
+        img = img.astype('float64')
     elif type is not None:
         raise RuntimeError('Passed type is unsupported')
     return img
@@ -210,7 +216,7 @@ def fscale(img, a, b, min=None, max=None):
         numpy.ndarray: Array containing normalised image data.
 
     """
-    img = np.asarray(img, dtype=np.float32)
+    img = np.asarray(img, dtype=np.float64)
     if min is None:
         min = np.min(img)
     if max is None:
@@ -230,11 +236,11 @@ def bg_removal(im, fgblur=3, bgblur=21):
         bgblur (int): Background filter size.
 
     Returns:
-        numpy.ndarray: Output image in float32 format in the [0, 1] domain.
+        numpy.ndarray: Output image in float64 format in the [0, 1] domain.
 
     """
-    image_fg = cv2.medianBlur(im, fgblur).astype(np.float32)
-    image_bg = cv2.medianBlur(im, bgblur).astype(np.float32)
+    image_fg = cv2.medianBlur(im, fgblur).astype(np.float64)
+    image_bg = cv2.medianBlur(im, bgblur).astype(np.float64)
     im_nobg = image_fg - image_bg
     im_nobg = fscale(im_nobg, 0, 1)
     # print(np.min(im_nobg), np.max(im_nobg), im_nobg.dtype)

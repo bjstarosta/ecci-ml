@@ -200,7 +200,7 @@ def preprocess_data(X):
         i = image.convtype(i, 'uint8')
         # remove background
         i = image.bg_removal(i)
-        i = image.convtype(i, 'float32')
+        i = image.convtype(i, 'float64')
         # centre the background
         i = i + (0.5 - np.mean(i))
         # clip image data to (0, 1)
@@ -224,7 +224,7 @@ def pack_data(X):
     X_ = []
     for i in X:
         i = image.convmode(i, 'gs1c')
-        i = image.convtype(i, 'float32')
+        i = image.convtype(i, 'float64')
         X_.append(i)
     X = np.array(X_)
 

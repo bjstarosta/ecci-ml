@@ -157,20 +157,6 @@ def preprocess_data(X):
         numpy.ndarray: Pre-processed image data.
 
     """
-    X_ = []
-    for i in X:
-        i = image.convmode(i, 'gs')
-        i = image.convtype(i, 'uint8')
-        # remove background
-        i = image.bg_removal(i)
-        i = image.convtype(i, 'float32')
-        # centre the background
-        i = i + (0.5 - np.mean(i))
-        # clip image data to (0, 1)
-        i = image.fscale(i, 0, 1)
-        # i = np.clip(i, 0, 1)
-        X_.append(i)
-    X = np.array(X_)
     return X
 
 
@@ -184,15 +170,12 @@ def pack_data(X):
         numpy.ndarray: Transformed image data.
 
     """
-    X_ = []
-    for i in X:
-        i = image.convmode(i, 'gs1c')
-        i = image.convtype(i, 'float32')
-        X_.append(i)
-    X = np.array(X_)
-
+    # scale image data to (0, 1)
+    X = (X.astype('float64') / 255.0)
     # pad image
-    X = np.pad(X, ((0, 0), (64, 64), (64, 64), (0, 0)), 'reflect')
+    X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
+    # add channel dimension
+    X = np.expand_dims(X, axis=-1)
     return X
 
 
@@ -206,12 +189,11 @@ def unpack_data(X):
         numpy.ndarray: Image data represented as an array of images.
 
     """
+    # unpad image
     X_ = []
     for i in X:
-        # unpad image
         X_.append(i[64:-64, 64:-64])
     X = np.array(X_)
-
     # clip image data to avoid out of bounds values
     X = np.clip(X, 0., 1.)
     # convert float to greyscale int
