@@ -377,6 +377,60 @@ class Dataset(K.utils.Sequence):
 
         self._preprocess = fn
 
+    def statistics(self):
+        """Return statistical information about a dataset.
+
+        Returns:
+            tuple: Tuple containing the average, variance, min, max, count
+                and NaN count of both the X and Y training datasets.
+
+        """
+        acc_x = np.array([[0.0, 0.0, 0, 0, 0, 0]], dtype=np.float64)
+        acc_y = np.array([[0.0, 0.0, 0, 0, 0, 0]], dtype=np.float64)
+
+        j = 1
+        for i in self:
+            acc_x = np.append(acc_x, np.array([[
+                np.average(i[0]),
+                np.var(i[0]),
+                np.min(i[0]),
+                np.max(i[0]),
+                j,
+                np.count_nonzero(np.isnan(i[0]))
+            ]], dtype=np.float64), axis=0)
+            acc_y = np.append(acc_y, np.array([[
+                np.average(i[1]),
+                np.var(i[1]),
+                np.min(i[1]),
+                np.max(i[1]),
+                j,
+                np.count_nonzero(np.isnan(i[1]))
+            ]], dtype=np.float64), axis=0)
+            j = j + 1
+
+        var_x = np.sum(acc_x[:, 1])
+        var_y = np.sum(acc_y[:, 1])
+
+        return (
+            (
+                np.average(acc_x[:, 0]),
+                var_x,
+                np.sqrt(var_x) if var_x > 0 else 0,
+                np.min(acc_x[:, 2]),
+                np.max(acc_x[:, 3]),
+                acc_x[len(acc_x) - 1, 4],
+                np.sum(acc_x[:, 5])
+            ), (
+                np.average(acc_y[:, 0]),
+                var_y,
+                np.sqrt(var_y) if var_y > 0 else 0,
+                np.min(acc_y[:, 2]),
+                np.max(acc_y[:, 3]),
+                acc_y[len(acc_y) - 1, 4],
+                np.sum(acc_y[:, 5])
+            )
+        )
+
     def _list_images(self, dir, limit=None):
         """Prepare an image dataset file listing in memory and return it.
 

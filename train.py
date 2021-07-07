@@ -144,9 +144,9 @@ def split_dataset(ds, test_split, val_split, flags):
         )
     )
 
-    ds_test = ds.split(test_split)
+    ds_test = ds.split(1 - test_split)
     if val_split > 0:
-        ds_val = ds_test.split(val_split)
+        ds_val = ds_test.split(1 - val_split)
     else:
         ds_val = None
 
@@ -203,6 +203,12 @@ def main(ctx, **kwargs):
     help="""Fraction of test dataset to split off as validation data."""
 )
 @click.option(
+    '-d',
+    '--dataset-stats',
+    is_flag=True,
+    help="""Will iterate dataset before training for mathematical stats."""
+)
+@click.option(
     '-t',
     '--test',
     is_flag=True,
@@ -235,6 +241,8 @@ def run(ctx, **kwargs):
         flags.append('sanity-test')
     if kwargs['no_early_stopping'] is True:
         flags.append('no-early-stopping')
+    if kwargs['dataset_stats'] is True:
+        flags.append('log-statistics')
 
     seed = lib.tf.set_seed(kwargs['seed'])
     dataset = load_dataset(

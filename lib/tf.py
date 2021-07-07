@@ -74,28 +74,39 @@ def train(
         seed = set_seed()
 
     # Set up dataset properties
-    for i in [ds, ds_test, ds_val]:
-        if i is None:
+    for x in [ds, ds_test, ds_val]:
+        if x is None:
             continue
-        i.rs = np.random.default_rng(seed=seed)
-        i.batch_size = options['batch_size']
-        i.shuffle_on_epoch_end = True
-        i.apply(model.pack_data)
-        i.preprocess(model.preprocess_data)
+        x.rs = np.random.default_rng(seed=seed)
+        x.batch_size = options['batch_size']
+        x.shuffle_on_epoch_end = True
+        x.apply(model.pack_data)
+        x.preprocess(model.preprocess_data)
 
-    # Save some dataset statistics to debug
-    batch0 = ds[0]
-    logger.debug("Statistics of first data batch:")
-    logger.debug("X.shape={0}".format(batch0[0].shape))
-    logger.debug("min(X)={0}, max(X)={1}, avg(X)={2}, var(X)={3}".format(
-        np.min(batch0[0]), np.max(batch0[0]),
-        np.average(batch0[0]), np.var(batch0[0])
-    ))
-    logger.debug("Y.shape={0}".format(batch0[1].shape))
-    logger.debug("min(Y)={0}, max(Y)={1}, avg(Y)={2}, var(Y)={3}".format(
-        np.min(batch0[1]), np.max(batch0[1]),
-        np.average(batch0[1]), np.var(batch0[1])
-    ))
+    # Save some dataset statistics to stdout
+    if 'log-statistics' in flags:
+        logger.info("Gathering statistics (this may take a while...)")
+
+        labels = ['training set', 'test set', 'validation set']
+        for i, x in enumerate([ds, ds_test, ds_val]):
+            if x is None:
+                continue
+
+            logger.info("Statistics of {0}:".format(labels[i]))
+            batch0 = x[0]
+            stats = x.statistics()
+            logger.info("X[0].shape={0}".format(batch0[0].shape))
+            logger.info((
+                "avg(X)={0}, var(X)={1}, std(X)={2}, "
+                "min(X)={3}, max(X)={4}, count(X)={5}, "
+                "NaNcount(X)={6}"
+            ).format(*stats[0]))
+            logger.info("Y[0].shape={0}".format(batch0[1].shape))
+            logger.info((
+                "avg(Y)={0}, var(Y)={1}, std(Y)={2}, "
+                "min(Y)={3}, max(Y)={4}, count(Y)={5}, "
+                "NaNcount(Y)={6}"
+            ).format(*stats[1]))
 
     # Load a model to add to or set up a new one
     if ('sanity-test' not in flags and 'no-save' not in flags
