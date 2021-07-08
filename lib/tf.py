@@ -121,7 +121,7 @@ def train(
     else:
         logger.info(
             'Pre-trained weights not used. Building model from scratch.')
-        input_shape = batch0[0][0].shape
+        input_shape = ds[0][0][0].shape
         logger.info(
             'Using input shape: {0}.'.format(input_shape))
         model_nn = model.build(options['learning_rate'], input_shape)
