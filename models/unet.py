@@ -170,12 +170,15 @@ def pack_data(X):
         numpy.ndarray: Transformed image data.
 
     """
-    # scale image data to (0, 1)
-    X = (X.astype('float64') / 255.0)
+    X_ = []
+    for i in X:
+        i = image.convmode(i, 'gs1c')
+        i = image.convtype(i, 'float64')
+        X_.append(i)
+    X = np.array(X_)
+
     # pad image
-    X = np.pad(X, ((0, 0), (64, 64), (64, 64)), 'reflect')
-    # add channel dimension
-    X = np.expand_dims(X, axis=-1)
+    X = np.pad(X, ((0, 0), (64, 64), (64, 64), (0, 0)), 'reflect')
     return X
 
 
@@ -189,16 +192,19 @@ def unpack_data(X):
         numpy.ndarray: Image data represented as an array of images.
 
     """
-    # unpad image
-    X_ = []
-    for i in X:
-        X_.append(i[64:-64, 64:-64])
-    X = np.array(X_)
     # clip image data to avoid out of bounds values
     X = np.clip(X, 0., 1.)
-    # convert float to greyscale int
-    X = X * 255.0
-    X = X.astype('uint8')
+
+    X_ = []
+    for i in X:
+        # unpad image
+        i = i[64:-64, 64:-64]
+
+        i = image.convmode(i, 'gs')
+        i = image.convtype(i, 'uint8')
+        X_.append(i)
+    X = np.array(X_)
+
     return X
 
 
