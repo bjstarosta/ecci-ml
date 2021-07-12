@@ -60,6 +60,14 @@ _train_click_options = [
         help="""Random number generator seed."""
     ),
     click.option(
+        '-n',
+        '--name',
+        type=str,
+        default=None,
+        help="""Custom model name to add to the filename when saving trained
+            weights."""
+    ),
+    click.option(
         '-r',
         '--revision',
         type=str,
@@ -233,7 +241,8 @@ def run(ctx, **kwargs):
     options = {
         'batch_size': kwargs['batch_size'],
         'epochs': kwargs['epochs'],
-        'learning_rate': kwargs['learning_rate']
+        'learning_rate': kwargs['learning_rate'],
+        'name': kwargs['name']
     }
 
     flags = []
@@ -290,7 +299,8 @@ def kfold(ctx, **kwargs):
     options = {
         'batch_size': kwargs['batch_size'],
         'epochs': kwargs['epochs'],
-        'learning_rate': kwargs['learning_rate']
+        'learning_rate': kwargs['learning_rate'],
+        'name': kwargs['name']
     }
 
     flags = ['no-save']

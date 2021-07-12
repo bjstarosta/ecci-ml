@@ -18,7 +18,8 @@ logger = lib.logger.logger
 train_def_options = {
     'batch_size': 32,
     'epochs': 10,
-    'learning_rate': 0.001
+    'learning_rate': 0.001,
+    'name': None
 }
 
 
@@ -167,11 +168,13 @@ def train(
     # Save model to weights directory
     if 'sanity-test' not in flags and 'no-save' not in flags:
         if revision_id is None:
-            weights_id = weights.available(model_id, str(seed))
+            weights_id = weights.available(
+                model_id, str(seed), options['name'])
         else:
-            weights_id = weights.available(model_id, revision_id)
+            weights_id = weights.available(
+                model_id, revision_id, options['name'])
 
-        weights_path = weights.path(weights_id[0], weights_id[1])
+        weights_path = weights.path(*weights_id)
         logger.info('Saving model to `{0}`.'.format(weights_path))
         model_nn.save(weights_path)
 
