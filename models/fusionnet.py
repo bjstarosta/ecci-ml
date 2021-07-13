@@ -120,7 +120,7 @@ def conv_residual_conv(feat_maps_out, act_fn, input):
     return conv_3
 
 
-def build(lr=0.001, input_shape=(640, 640, 1), num_classes=2):
+def build(lr=0.001, input_shape=(640, 640, 1), num_classes=1):
     inputs = L.Input(input_shape)
     n_filters = 32
 
@@ -168,7 +168,7 @@ def build(lr=0.001, input_shape=(640, 640, 1), num_classes=2):
     metrics = [
         K.metrics.MeanSquaredError(),
         K.metrics.Accuracy(),
-        K.metrics.CategoricalCrossentropy()
+        # K.metrics.CategoricalCrossentropy()
     ]
     # else:
     #     loss = K.losses.BinaryCrossentropy()
