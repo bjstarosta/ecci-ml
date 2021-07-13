@@ -23,6 +23,26 @@ logger = lib.logger.logger
 lib.logger.start_stream_log()
 
 
+_predict_click_options = [
+    click.argument('model', nargs=1, type=str),
+    click.argument('iteration', nargs=1, type=str),
+    click.option(
+        '-n',
+        '--name',
+        type=str,
+        default=None,
+        help="""Custom model name to add to the filename when saving trained
+            weights."""
+    )
+]
+
+
+def predict_click_options(func):
+    for option in reversed(_predict_click_options):
+        func = option(func)
+    return func
+
+
 @click.group()
 @click.option(
     '-v',
@@ -55,8 +75,7 @@ def main(ctx, **kwargs):
 
 
 @main.command()
-@click.argument('model', nargs=1, type=str)
-@click.argument('iteration', nargs=1, type=str)
+@predict_click_options
 @click.option(
     '-i',
     '--input',
@@ -78,15 +97,20 @@ def image_dir(ctx, **kwargs):
             ctx=ctx
         )
 
-    if not weights.weights_exist(kwargs['model'], kwargs['iteration']):
+    if not weights.weights_exist(
+        kwargs['model'],
+        kwargs['iteration'],
+        kwargs['name']
+    ):
         raise click.UsageError(
-            "Model '{0}' (iteration: '{1}') does not exist.".format(
-                kwargs['model'], kwargs['iteration']),
+            ("Model '{0}' (iteration: '{1}', name: '{2}') "
+            "does not exist.").format(
+                kwargs['model'], kwargs['iteration'], kwargs['name']),
             ctx=ctx
         )
 
     ctx.obj['model'] = kwargs['model']
-    ctx.obj['weights'] = (kwargs['model'], kwargs['iteration'])
+    ctx.obj['weights'] = (kwargs['model'], kwargs['iteration'], kwargs['name'])
 
     logger.info('Scanning for images in `{0}`.'.format(kwargs['input']))
     lst = []
@@ -141,8 +165,7 @@ def image_dir(ctx, **kwargs):
 
 
 @main.command()
-@click.argument('model', nargs=1, type=str)
-@click.argument('iteration', nargs=1, type=str)
+@predict_click_options
 @click.option(
     '-i',
     '--input',

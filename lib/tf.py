@@ -195,7 +195,7 @@ def predict(X, model_id, weights_id):
 
     """
     model = models.load_model(model_id)
-    model_nn = weights.load_weights(weights_id[0], weights_id[1])
+    model_nn = weights.load_weights(*weights_id)
 
     single_image = False
     if len(X.shape) == 2:
