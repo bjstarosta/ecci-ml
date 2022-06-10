@@ -230,6 +230,15 @@ class Dataset(K.utils.Sequence):
         """
         raise NotImplementedError()
 
+    def generate_dataset(self, ctx=None):
+        """Generate the augmented dataset.
+
+        Returns:
+            None
+
+        """
+        raise NotImplementedError()
+
     def load_data(self, batch_x, batch_y):
         """Return raw data loaded from the dataset using identifier lists.
 
@@ -514,6 +523,45 @@ class Dataset(K.utils.Sequence):
 
         return self._apply(np.array(X))
 
+    def _load_images_hdf5(
+        self, hdf5ds, indices, type=None, mode=None, preprocess=False
+    ):
+        """Load a list of images from the passed hdf5 dataset.
+
+        For use from within the load_data() batch generation method.
+
+        Args:
+            hdf5ds (h5py.Dataset): An hdf5 dataset handle.
+            indices (list): List of integers denoting image positions in the
+                hdf5 dataset.
+            type (str): Value type to save the image with. See
+                lib.image.convtype() for documentation of accepted
+                values.
+            mode (str): Channel mode to save the image with. See
+                lib.image.convmode() for documentation of accepted
+                values.
+            preprocess (bool): Set to True if loaded images are to be passed
+                through the preprocessing function.
+
+        Returns:
+            numpy.ndarray: Numpy array of images. Depending on the images
+                loaded, will either be 3 or 4-dim with the top dimension
+                grouping the images together.
+
+        """
+        X = []
+
+        for im in indices:
+            im = hdf5ds[im] #np.copy()
+            im = image.convtype(im, type)
+            im = image.convmode(im, mode)
+            X.append(im)
+
+        if preprocess is True:
+            X = self._preprocess(X)
+
+        return self._apply(np.array(X))
+
     def _generate_indices(self):
         """Generate internal data indices.
 
@@ -699,3 +747,38 @@ class DatasetCollection(Dataset):
 class DatasetException(Exception):
     """Base class for Dataset specific exceptions."""
     pass
+
+
+def get_ds_size(path):
+    """Return number of files in a directory.
+
+    Args:
+        path (str): Path to directory.
+
+    Returns:
+        int: Non-negative number indicating number of files found.
+
+    """
+    plist = os.listdir(path)
+    i = 0
+    for f in plist:
+        i += 1
+    return i
+
+
+def get_ds_format(path, itype=None, imode=None):
+    """Return format of the first file in a directory.
+
+    The assumption is that all data files in a directory are uniform.
+
+    Args:
+        path (str): Path to directory.
+
+    Returns:
+        tuple: Numpy array dimensions of the read file in rc format.
+        numpy.dtype: Dtype of the read file.
+
+    """
+    file = os.path.join(path, os.listdir(path)[0])
+    im = image.load_image(file, itype, imode)
+    return im.shape, im.dtype
