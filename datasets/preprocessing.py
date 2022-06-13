@@ -38,6 +38,10 @@ class DatasetGenerator:
         augmenting the dataset.
     - rot_pad: decides how to fill in empty pixels on non right hand rotations,
         see rotate_image() in lib.image.
+    - rot_crop: crops the image according to settings after the rotation.
+        If set to False, no cropping will occur. Other settings are:
+            - 'imsize': will attempt to crop the image to size of the original
+                with the content centred.
     - flip_h: if set to True, will enable augmentation via horizontal flipping.
     - flip_v: if set to True, will enable augmentation via vertical flipping.
     - split_chunks: if set to True, will split each image into smaller chunks
@@ -82,12 +86,18 @@ class DatasetGenerator:
 
     def __init__(self,
         dsid, inputs, source_in, example_out, ground_out, hdf5_save=None,
-        options={
+        options=None
+    ):
+        if options is None:
+            options = {}
+
+        def_options = {
             'crop': False,
             'crop_px': (0, 0, 0, 0),
             'rotate': False,
             'rot_directions': [0, 0.5 * np.pi, np.pi, 1.5 * np.pi],
             'rot_pad': 'reflect',
+            'rot_crop': False,
             'flip_h': False,
             'flip_v': False,
             'split_chunks': False,
@@ -100,10 +110,10 @@ class DatasetGenerator:
             'hdf5_save_type': 'uint8',
             'processes': 12
         }
-    ):
+
         self.dsid = dsid
         self.inputs = inputs
-        self.options = options
+        self.options = {**def_options, **options}
 
         self.basedir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
@@ -123,7 +133,7 @@ class DatasetGenerator:
 
         self._filters = []
 
-    def add_filter(self, f, fkwargs={}, delinputs=False):
+    def add_filter(self, f, fkwargs={}, fmode='both', delinputs=False):
         """Add filter function to the processing list.
 
         All passed functions should have one argument which will be used to
@@ -138,6 +148,8 @@ class DatasetGenerator:
         Args:
             f (callable): Function to be called later.
             fkwargs (dict): Any function arguments to be set to constant.
+            fmode (str): Which parts of the pair will the filter apply to.
+                Options are: example, ground, both.
             delinputs (bool): If set to True, the images fed in as inputs
                 will be deleted from the working directory when the
                 filter operation is complete. Set to True when replacing
@@ -153,7 +165,7 @@ class DatasetGenerator:
                     repr(f)
                 )
             )
-        self._filters.append((f, fkwargs, delinputs))
+        self._filters.append((f, fkwargs, fmode, delinputs))
 
     def run(self, ctx):
         """Run the dataset generator.
@@ -202,11 +214,15 @@ class DatasetGenerator:
             ctx.obj['logger'].info("Rotation padding: {0}".format(
                 self.options['rot_pad']
             ))
+            ctx.obj['logger'].info("Rotation cropping: {0}".format(
+                self.options['rot_crop']
+            ))
             i = _progbar_wrapper(self,
                 functools.partial(
                     _mprun_wrapper, mpfn=_rotate_images_mprun, mpfnkwargs={
                         'rot_dir': self.options['rot_directions'],
                         'rot_pad': self.options['rot_pad'],
+                        'crop': self.options['rot_crop'],
                         'path1': self.example_out,
                         'path2': self.ground_out
                     }
@@ -231,13 +247,14 @@ class DatasetGenerator:
             ctx.obj['logger'].info("Flipped {0} image pairs.".format(i))
 
         # Apply custom filters
-        for f, fkwargs, delinputs in self._filters:
+        for f, fkwargs, fmode, delinputs in self._filters:
             ctx.obj['logger'].info("Operation: filter-{0}".format(f.__name__))
             i = _progbar_wrapper(self,
                 functools.partial(_mprun_wrapper,
                     mpfn=_filter_wrapper, mpfnkwargs={
                         'fn': f,
                         'fnkwargs': fkwargs,
+                        'fmode': fmode,
                         'path1': self.example_out,
                         'path2': self.ground_out
                     }, unlink=delinputs
@@ -432,11 +449,32 @@ def _mprun_wrapper(dgen, mpfn, mpfnkwargs, unlink=True):
         dgen.wpairs.extend(_wpairs)
 
 
-def _filter_wrapper(pair, fn, fnkwargs, path1, path2):
+def _filter_wrapper(pair, fn, fnkwargs, fmode, path1, path2):
     _wpairs = []
 
-    exp = fn(pair[1], **fnkwargs)
-    ground = fn(pair[3], **fnkwargs)
+    if fmode == 'both':
+        exp = fn(pair[1], **fnkwargs)
+        ground = fn(pair[3], **fnkwargs)
+
+    elif fmode == 'example':
+        exp = fn(pair[1], **fnkwargs)
+        ground = []
+        for i in exp:
+            ground.append((i[0], pair[3]))
+
+    elif fmode == 'ground':
+        ground = fn(pair[3], **fnkwargs)
+        exp = []
+        for i in ground:
+            exp.append((i[0], pair[1]))
+
+    else:
+        raise ValueError(
+            ('Unknown value for filter mode: {0}. '
+            'Check __init__.py for the dataset being processed.').format(
+                fmode
+            )
+        )
 
     for i, im in enumerate(exp):
         expf = _suffix_filename(pair[0], exp[i][0])
@@ -476,12 +514,30 @@ def _crop_images(dgen):
     dgen.wpairs = _wpairs
 
 
-def _rotate_images_mprun(pair, rot_dir, rot_pad, path1, path2):
+def _rotate_images_mprun(pair, rot_dir, rot_pad, crop, path1, path2):
     suffix = '_r{:03d}'
     _wpairs = []
     for a in rot_dir:
         exp = image.rotate_image(pair[1], a, rot_pad)
         ground = image.rotate_image(pair[3], a, rot_pad)
+
+        ox, oy = pair[1].shape[1], pair[1].shape[0]
+        rx, ry = exp.shape[1], exp.shape[0]
+        if crop == 'imsize':
+            left = (rx / 2) - (ox / 2)
+            top = (ry / 2) - (oy / 2)
+            right = rx - (left + ox)
+            bottom = ry - (top + oy)
+            crop_px = (
+                int(left) if left >= 0 else 0,
+                int(top) if top >= 0 else 0,
+                int(right) if right >= 0 else 0,
+                int(bottom) if bottom >= 0 else 0
+            )
+
+        if crop is not False and crop_px is not None:
+            exp = image.crop_image(exp, *crop_px)
+            ground = image.crop_image(ground, *crop_px)
 
         deg = int(np.round(a * (180 / np.pi)))
         expf = _suffix_filename(pair[0], suffix.format(deg))

@@ -10,6 +10,7 @@ import logging
 
 import click
 import numpy as np
+import matplotlib.pyplot as plt
 
 import lib.logger
 import lib.tf
@@ -33,6 +34,19 @@ _predict_click_options = [
         default=None,
         help="""Custom model name to add to the filename when saving trained
             weights."""
+    ),
+    click.option(
+        '-s',
+        '--stride',
+        type=float,
+        default=1,
+        help="""Sliding window stride ratio when predicting images. Set to
+            less than 1 for potentially better results at the cost of speed."""
+    ),
+    click.option(
+        '--compare',
+        is_flag=True,
+        help="""Show image and prediction comparison in matplotlib."""
     )
 ]
 
@@ -41,6 +55,59 @@ def predict_click_options(func):
     for option in reversed(_predict_click_options):
         func = option(func)
     return func
+
+
+def image_to_nparray(im, ishape, stride=1):
+    imsz = (im.shape[1], im.shape[0])
+    swsz = (ishape[1], ishape[0])
+    s = (int(ishape[1] * stride), int(ishape[0] * stride))
+
+    ret = []
+    for sw in lib.image.sliding_window_2d(imsz, swsz, s, 'middle'):
+        ret.append(lib.image.slice_image(im, sw, 'reflect'))
+
+    return np.stack(ret, axis=0)
+
+
+def nparray_to_image(arr, imshape, ishape, stride=1):
+    imsz = (imshape[1], imshape[0])
+    swsz = (ishape[1], ishape[0])
+    s = (int(ishape[1] * stride), int(ishape[0] * stride))
+
+    retsz = (
+        int(np.ceil(imsz[0] / swsz[0]) * swsz[0]),
+        int(np.ceil(imsz[1] / swsz[1]) * swsz[1])
+    )
+    ret = np.zeros((retsz[1], retsz[0]), dtype=arr.dtype)
+    for i, sw in enumerate(
+        lib.image.sliding_window_2d(retsz, swsz, s, cutoff=True)
+    ):
+        ret[sw[1]:(sw[1] + sw[3]), sw[0]:(sw[0] + sw[2])] |= arr[i]
+
+    if imsz != retsz:
+        left = (retsz[0] / 2) - (imsz[0] / 2)
+        top = (retsz[1] / 2) - (imsz[1] / 2)
+        right = retsz[0] - (left + imsz[0])
+        bottom = retsz[1] - (top + imsz[1])
+        crop = (
+            int(left) if left >= 0 else 0,
+            int(top) if top >= 0 else 0,
+            int(right) if right >= 0 else 0,
+            int(bottom) if bottom >= 0 else 0
+        )
+        ret = lib.image.crop_image(ret, *crop)
+
+    return ret
+
+
+def mpl_comparison(im, pred, fname, mname):
+    fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(20, 12))
+    fig.suptitle('Prediction: {0} (model: {1})'.format(
+        fname, mname
+    ), fontsize=16)
+    ax.imshow(im, cmap=plt.cm.gray)
+    ax.imshow(pred, cmap=plt.cm.jet, alpha=0.5)
+    plt.show()
 
 
 @click.group()
@@ -136,6 +203,7 @@ def image_dir(ctx, **kwargs):
     X = np.array(X)
 
     logger.info('Prediction starts.')
+    logger.debug("Y.shape={0}".format(Y.shape))
 
     try:
         Y = lib.tf.predict(X, ctx.obj['model'], ctx.obj['weights'])
@@ -208,7 +276,16 @@ def image(ctx, **kwargs):
             ctx=ctx
         )
 
-    X = np.array([lib.image.load_image(kwargs['input'])])
+    im = lib.image.load_image(kwargs['input'])
+    input_shape = models.model_input_shape(ctx.obj['model'])
+
+    if im.shape != input_shape:
+        logger.info(('Image shape different from input shape. '
+            'Sliding window enabled.'))
+        X = image_to_nparray(im, input_shape, stride=kwargs['stride'])
+        swenabled = True
+    else:
+        X = np.array([im])
 
     logger.info('Prediction starts.')
 
@@ -223,9 +300,20 @@ def image(ctx, **kwargs):
     ))
     logger.debug("Y.shape={0}, Y.dtype={1}".format(Y.shape, Y.dtype))
 
-    lib.image.save_image(kwargs['output'], Y[0])
+    if swenabled:
+        pred = nparray_to_image(
+            Y, im.shape, input_shape, stride=kwargs['stride']
+        )
+    else:
+        pred = Y[0]
 
+    lib.image.save_image(kwargs['output'], pred)
     logger.info('Prediction saved to "{0}".'.format(kwargs['output']))
+
+    mpl_comparison(im, pred,
+        os.path.basename(kwargs['input']),
+        '{0} {1}'.format(*ctx.obj['weights'])
+    )
 
 
 if __name__ == '__main__':

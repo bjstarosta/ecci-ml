@@ -39,12 +39,6 @@ lib.logger.start_stream_log()
     type=str,
     help="""Dataset name to regenerate."""
 )
-@click.option(
-    '-h5',
-    '--hdf5',
-    is_flag=True,
-    help="""If set, saves the dataset in hdf5 format."""
-)
 @click.pass_context
 def main(ctx, **kwargs):
     """Dataset generation supervisor."""

@@ -95,3 +95,22 @@ def model_exists(model_id):
 
     """
     return os.path.exists(path(model_id))
+
+
+def model_input_shape(model_mod):
+    """Return shape of the input layer for a given model.
+
+    Args:
+        model_mod (module): Model module reference as given by load_model().
+            Can also be a model_id string, in which case the module will be
+            loaded within the function.
+
+    Returns:
+        tuple: Tuple of ints describing the shape of the input layer.
+
+    """
+    if type(model_mod) is str:
+        model_mod = load_model(model_mod)
+
+    mlmm = model_mod.build()
+    return mlmm.get_layer(index=0)._batch_input_shape[1:]
