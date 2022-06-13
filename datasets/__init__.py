@@ -12,6 +12,7 @@ import inspect
 
 import numpy as np
 import tensorflow.keras as K
+import h5py
 import click
 
 import lib.logger
@@ -587,6 +588,12 @@ class Dataset(K.utils.Sequence):
         i0 = idx * self.batch_size
         i1 = min((idx + 1) * self.batch_size, len(self.x))
         return self.indices[i0:i1]
+
+    def _get_hdf5(self, filename):
+        if self._fh is None:
+            fhpath = os.path.join(path(self.id), filename)
+            self._fh = h5py.File(fhpath, 'r')
+        return self._fh
 
 
 class DatasetCollection(Dataset):
