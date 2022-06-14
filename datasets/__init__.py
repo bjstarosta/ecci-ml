@@ -168,6 +168,7 @@ class Dataset(K.utils.Sequence):
             'batch_size', 'shuffle_on_epoch_end',
             'logger', '_apply', '_preprocess'
         ]
+        self._fh = None
 
     def __len__(self):
         """Number of batches in the sequence.
