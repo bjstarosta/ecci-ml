@@ -366,10 +366,10 @@ def sliding_window_2d(
     cr = np.arange(0, imsz[0], st[0])
 
     # Transform ranges according to chosen origin.
-    swbbox = (rr[-1] + wsz[1], cr[-1] + wsz[0])
+    swbbox = (cr[-1] + wsz[0], rr[-1] + wsz[1])
     if origin == 'middle':
-        rr += int((imsz[1] - swbbox[0]) / 2)
-        cr += int((imsz[0] - swbbox[1]) / 2)
+        rr += int((imsz[1] - swbbox[1]) / 2)
+        cr += int((imsz[0] - swbbox[0]) / 2)
 
     elif origin != 'lefttop':
         raise RuntimeError(

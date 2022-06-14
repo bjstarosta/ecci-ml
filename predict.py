@@ -44,6 +44,13 @@ _predict_click_options = [
             less than 1 for potentially better results at the cost of speed."""
     ),
     click.option(
+        '-c',
+        '--crop',
+        type=int,
+        default=0,
+        help="""Number of pixels to crop from the edge of the image."""
+    ),
+    click.option(
         '--compare',
         is_flag=True,
         help="""Show image and prediction comparison in matplotlib."""
@@ -74,13 +81,15 @@ def nparray_to_image(arr, imshape, ishape, stride=1):
     swsz = (ishape[1], ishape[0])
     s = (int(ishape[1] * stride), int(ishape[0] * stride))
 
+    max_imsz = (imsz[0] + swsz[0], imsz[1] + swsz[1])
     retsz = (
-        int(np.ceil(imsz[0] / swsz[0]) * swsz[0]),
-        int(np.ceil(imsz[1] / swsz[1]) * swsz[1])
+        int(np.ceil((max_imsz[0] / s[0]) * s[0])),
+        int(np.ceil((max_imsz[1] / s[1]) * s[0]))
     )
+
     ret = np.zeros((retsz[1], retsz[0]), dtype=arr.dtype)
     for i, sw in enumerate(
-        lib.image.sliding_window_2d(retsz, swsz, s, cutoff=True)
+        lib.image.sliding_window_2d(retsz, swsz, s, 'middle', cutoff=True)
     ):
         ret[sw[1]:(sw[1] + sw[3]), sw[0]:(sw[0] + sw[2])] |= arr[i]
 
@@ -277,6 +286,10 @@ def image(ctx, **kwargs):
         )
 
     im = lib.image.load_image(kwargs['input'])
+
+    if kwargs['crop'] > 0:
+        im = lib.image.crop_image(im, *([kwargs['crop']] * 4))
+
     input_shape = models.model_input_shape(ctx.obj['model'])
 
     if im.shape != input_shape:
@@ -314,6 +327,53 @@ def image(ctx, **kwargs):
         os.path.basename(kwargs['input']),
         '{0} {1}'.format(*ctx.obj['weights'])
     )
+
+
+@main.command()
+@predict_click_options
+@click.option(
+    '-i',
+    '--input',
+    required=True,
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, readable=True
+    )
+)
+@click.option(
+    '-o',
+    '--output',
+    required=True,
+    type=click.Path(
+        exists=False, file_okay=True, dir_okay=False, writable=True
+    )
+)
+@click.pass_context
+def fmapvis(ctx, **kwargs):
+    """Visualise feature maps of a model."""
+    if not models.model_exists(kwargs['model']):
+        raise click.UsageError(
+            "Model '{0}' does not exist.".format(kwargs['model']),
+            ctx=ctx
+        )
+
+    if not weights.weights_exist(kwargs['model'], kwargs['iteration']):
+        raise click.UsageError(
+            "Model '{0}' (iteration: '{1}') does not exist.".format(
+                kwargs['model'], kwargs['iteration']),
+            ctx=ctx
+        )
+
+    ctx.obj['model'] = kwargs['model']
+    ctx.obj['weights'] = (kwargs['model'], kwargs['iteration'])
+
+    if not lib.image.valid_image(kwargs['input']):
+        raise click.UsageError(
+            "File '{0}' is not a valid image.".format(
+                kwargs['input']),
+            ctx=ctx
+        )
+
+    im = lib.image.load_image(kwargs['input'])
 
 
 if __name__ == '__main__':
