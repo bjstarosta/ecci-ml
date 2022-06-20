@@ -108,7 +108,8 @@ class DatasetGenerator:
             'chunk_origin': 'lefttop',
             'hdf5_save_mode': 'grayscale',
             'hdf5_save_type': 'uint8',
-            'processes': 12
+            'processes': 12,
+            'debug': False
         }
 
         self.dsid = dsid
@@ -284,46 +285,47 @@ class DatasetGenerator:
             )
             ctx.obj['logger'].info("Chunked {0} image pairs.".format(i))
 
-            ctx.obj['logger'].info("Checking dimensions...")
-            errors = 0
-            for pair in self.wpairs:
-                im1path = os.path.join(self.example_out, pair[0])
-                im2path = os.path.join(self.ground_out, pair[1])
-                im1 = image.load_image(im1path)
-                im2 = image.load_image(im2path)
-                if im1 is None:
-                    ctx.obj['logger'].warning(
-                        "Exp. image '{0}' not found.".format(im1path)
-                    )
-                if im2 is None:
-                    ctx.obj['logger'].warning(
-                        "Ground image '{0}' not found.".format(im2path)
-                    )
-                if (im1.shape[1] != self.options['chunk_size'][0]
-                    or im1.shape[0] != self.options['chunk_size'][1]
-                ):
-                    ctx.obj['logger'].warning(
-                        ("Exp. image is of size {0}x{1},"
-                        " expected size is {2}x{3}.").format(
-                            im1.shape[1],
-                            im1.shape[0],
-                            self.options['chunk_size'][0],
-                            self.options['chunk_size'][1]
+            if self.options['debug']:
+                ctx.obj['logger'].info("Checking dimensions...")
+                errors = 0
+                for pair in self.wpairs:
+                    im1path = os.path.join(self.example_out, pair[0])
+                    im2path = os.path.join(self.ground_out, pair[1])
+                    im1 = image.load_image(im1path)
+                    im2 = image.load_image(im2path)
+                    if im1 is None:
+                        ctx.obj['logger'].warning(
+                            "Exp. image '{0}' not found.".format(im1path)
                         )
-                    )
-                if (im2.shape[1] != self.options['chunk_size'][0]
-                    or im2.shape[0] != self.options['chunk_size'][1]
-                ):
-                    ctx.obj['logger'].warning(
-                        ("Ground image is of size {0}x{1},"
-                        " expected size is {2}x{3}.").format(
-                            im2.shape[1],
-                            im2.shape[0],
-                            self.options['chunk_size'][0],
-                            self.options['chunk_size'][1]
+                    if im2 is None:
+                        ctx.obj['logger'].warning(
+                            "Ground image '{0}' not found.".format(im2path)
                         )
-                    )
-            ctx.obj['logger'].info("{0} outliers found.".format(errors))
+                    if (im1.shape[1] != self.options['chunk_size'][0]
+                        or im1.shape[0] != self.options['chunk_size'][1]
+                    ):
+                        ctx.obj['logger'].warning(
+                            ("Exp. image is of size {0}x{1},"
+                            " expected size is {2}x{3}.").format(
+                                im1.shape[1],
+                                im1.shape[0],
+                                self.options['chunk_size'][0],
+                                self.options['chunk_size'][1]
+                            )
+                        )
+                    if (im2.shape[1] != self.options['chunk_size'][0]
+                        or im2.shape[0] != self.options['chunk_size'][1]
+                    ):
+                        ctx.obj['logger'].warning(
+                            ("Ground image is of size {0}x{1},"
+                            " expected size is {2}x{3}.").format(
+                                im2.shape[1],
+                                im2.shape[0],
+                                self.options['chunk_size'][0],
+                                self.options['chunk_size'][1]
+                            )
+                        )
+                ctx.obj['logger'].info("{0} outliers found.".format(errors))
 
         # Stats
         pcount = len(self.wpairs)
